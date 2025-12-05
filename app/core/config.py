@@ -39,3 +39,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Obtiene la configuración de la aplicación (cached)."""
     return Settings()
+
+
+# Instancia global de configuración
+settings = get_settings()

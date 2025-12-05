@@ -2,7 +2,7 @@
 Schemas Pydantic para presupuestos y sus indicadores
 """
 from pydantic import BaseModel, Field
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 
@@ -87,5 +87,48 @@ class PresupuestoDetalle(PresupuestoBase):
                 "pre_vbggDt": None,
                 "pre_trnFec": "2025-12-01",
                 "pre_trnusu": "VENDEDOR1"
+            }
+        }
+
+
+class PresupuestoAprobar(BaseModel):
+    """
+    Schema para solicitud de aprobación de presupuesto.
+    El usuario que aprueba se obtiene del token JWT (no se envía en el body).
+    """
+    Loc_cod: int = Field(..., description="Código de local")
+    pre_nro: int = Field(..., description="Número de presupuesto")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "Loc_cod": 1,
+                "pre_nro": 12345
+            }
+        }
+
+
+class PresupuestoAprobadoResponse(BaseModel):
+    """
+    Schema para respuesta de aprobación exitosa.
+    """
+    success: bool = Field(..., description="Indica si la aprobación fue exitosa")
+    message: str = Field(..., description="Mensaje descriptivo")
+    Loc_cod: int = Field(..., description="Código de local")
+    pre_nro: int = Field(..., description="Número de presupuesto")
+    pre_vbggUsu: str = Field(..., description="Usuario que aprobó")
+    pre_vbggDt: date = Field(..., description="Fecha de aprobación")
+    pre_vbggTime: str = Field(..., description="Hora de aprobación")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Presupuesto aprobado exitosamente",
+                "Loc_cod": 1,
+                "pre_nro": 12345,
+                "pre_vbggUsu": "admin",
+                "pre_vbggDt": "2025-12-05",
+                "pre_vbggTime": "15:30:45"
             }
         }

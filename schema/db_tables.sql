@@ -78,3 +78,23 @@ CREATE TABLE `cot013` (
   KEY `COT13D` (`Loc_cod`,`pre_fec`,`pre_rut`,`pre_suc`,`pre_nro`),
   KEY `COT13H` (`Loc_cod`,`Pre_vbggAvi`,`pre_vbggDt`,`pre_vbggTime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+
+CREATE TABLE `ctbm01` (
+  `UserCd` char(10) NOT NULL,
+  `UserDs` char(30) NOT NULL,
+  `UserLlave` char(6) NOT NULL,
+  `UserCta` smallint NOT NULL,
+  `UserParam` smallint NOT NULL,
+  `UserMaes` smallint NOT NULL,
+  `UserMovi` smallint NOT NULL,
+  `UserUti` smallint NOT NULL,
+  `UserCon` smallint NOT NULL,
+  `UserPerf` smallint NOT NULL,
+  `UserFolDte` char(10) NOT NULL,
+  `UserDte` smallint NOT NULL,
+  `UserChPass` char(1) NOT NULL,
+  `UserNameMail` char(50) NOT NULL,
+  `UserMail` char(50) NOT NULL,
+  `UserGAMGUID` char(40) NOT NULL,
+  PRIMARY KEY (`UserCd`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
