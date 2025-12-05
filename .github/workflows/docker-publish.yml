@@ -97,9 +97,9 @@ jobs:
             echo "🛑 Deteniendo servicios anteriores..."
             docker-compose down
             
-            # Iniciar servicios con docker-compose
+            # Iniciar servicios con docker-compose (forzar recreación)
             echo "▶️ Iniciando servicios con docker-compose..."
-            docker-compose up -d
+            docker-compose up -d --force-recreate
             
             # Esperar a que el contenedor esté listo
             echo "⏳ Esperando que el servicio esté listo..."
