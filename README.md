@@ -1,52 +1,58 @@
-# FME Backend - Sistema de Aprobaciones
+# MCN Backend - Sistema de Aprobaciones
 
-Backend API desarrollado con FastAPI, SQLAlchemy y MySQL para el sistema de gestión de aprobaciones FME.
+Backend API desarrollado con FastAPI, SQLAlchemy y MySQL para el sistema de gestión de aprobaciones de presupuestos.
+
+---
+
+## 👥 ¿Nuevo Colaborador?
+
+Si eres nuevo en este proyecto, **comienza aquí**:
+
+### 📖 **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guía Completa para Colaboradores
+
+Esta guía incluye:
+- ✅ Configuración inicial paso a paso
+- ✅ Cómo ejecutar el proyecto localmente
+- ✅ Flujo de trabajo con Git
+- ✅ Solución de problemas comunes
+- ✅ Buenas prácticas de desarrollo
+
+---
 
 ## 📋 Requisitos
 
 - Python 3.9+
 - MySQL 5.7.7 - 5.7.23
+- Git
 - pip
 
-## 🚀 Instalación y Configuración
-
-### 1. Clonar el repositorio
+## 🚀 Instalación Rápida
 
 ```bash
+# 1. Clonar el repositorio
 git clone https://github.com/mmoyac/mcn_aprobaciones_backend.git
 cd mcn_aprobaciones_backend
-```
 
-### 2. Crear entorno virtual
-
-```bash
+# 2. Crear entorno virtual
 python -m venv .venv
-.venv\Scripts\activate  # En Windows
-```
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
 
-### 3. Instalar dependencias
-
-```bash
+# 3. Instalar dependencias
 pip install -r requirements.txt
-```
 
-### 4. Configurar variables de entorno
+# 4. Configurar variables de entorno
+copy .env.example .env  # Windows
+# cp .env.example .env  # Linux/Mac
+# Edita .env con tus credenciales
 
-Copiar el archivo `.env.example` a `.env` y configurar las variables:
-
-```bash
-copy .env.example .env
-```
-
-Editar `.env` con tus credenciales de base de datos.
-
-### 5. Ejecutar la aplicación
-
-```bash
+# 5. Ejecutar el servidor
 uvicorn app.main:app --reload
 ```
 
-La API estará disponible en: `http://localhost:8000`
+**🔗 La API estará disponible en:** http://localhost:8000
+
+**📖 Para instrucciones detalladas, ver [CONTRIBUTING.md](CONTRIBUTING.md)**
 
 ## 📁 Estructura del Proyecto
 
@@ -96,6 +102,23 @@ La documentación interactiva de la API está disponible en:
 - **Base de Datos**: MySQL
 - **Testing**: pytest + httpx
 - **Linting**: Black + Ruff
+
+## 👥 Colaboración
+
+Para contribuir al proyecto:
+
+1. Lee la **[Guía para Colaboradores](CONTRIBUTING.md)**
+2. Crea un fork del repositorio
+3. Crea una rama para tu feature: `git checkout -b feature/AmazingFeature`
+4. Commit tus cambios: `git commit -m 'Add: Amazing Feature'`
+5. Push a la rama: `git push origin feature/AmazingFeature`
+6. Abre un Pull Request
+
+## 📞 Soporte
+
+- 📖 **Documentación**: Carpeta `docs/`
+- 🐛 **Issues**: [GitHub Issues](https://github.com/mmoyac/mcn_aprobaciones_backend/issues)
+- 📧 **Contacto**: [GitHub Profile](https://github.com/mmoyac)
 
 ## 📄 Licencia
 
