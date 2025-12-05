@@ -1,25 +1,32 @@
+# =====================================
+# Docker Compose - MCN Aprobaciones Backend
+# Para VPS con red general-net y Nginx
+# =====================================
 version: '3.8'
 
 services:
+  # Backend API
   backend:
     image: mmoyac/mcn_aprobaciones_backend:latest
     container_name: mcn_backend
-    ports:
-      - "8001:8000"
+    restart: always
+    # Puerto comentado - Nginx accede internamente
+    # ports:
+    #   - "8001:8000"
     env_file:
       - .env
     volumes:
       - ./logs:/app/logs
-    restart: unless-stopped
+    networks:
+      - general-net
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - general-net
 
+# Red externa (debe existir en el VPS)
 networks:
   general-net:
     external: true
