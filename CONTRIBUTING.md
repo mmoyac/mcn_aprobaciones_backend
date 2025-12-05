@@ -158,6 +158,10 @@ pytest -v
 
 ## 🌿 Flujo de Trabajo con Git
 
+### ⚠️ IMPORTANTE: Solo Pull Requests
+
+**Este repositorio tiene la rama `main` protegida.** No puedes hacer push directo. Debes trabajar con Pull Requests.
+
 ### Crear una Nueva Funcionalidad
 
 ```bash
@@ -165,18 +169,28 @@ pytest -v
 git checkout main
 git pull origin main
 
-# 2. Crea una nueva rama
+# 2. Crea una nueva rama (OBLIGATORIO)
 git checkout -b feature/nombre-de-tu-funcionalidad
+# Ejemplos de nombres de rama:
+# - feature/endpoint-eliminar-presupuestos
+# - fix/correccion-validacion-fechas
+# - docs/actualizar-readme
 
 # 3. Realiza tus cambios y haz commits
 git add .
-git commit -m "Descripción clara de tus cambios"
+git commit -m "Add: Descripción clara de tus cambios"
 
-# 4. Sube tu rama
+# 4. Sube tu rama (NO A MAIN)
 git push origin feature/nombre-de-tu-funcionalidad
 
 # 5. Crea un Pull Request en GitHub
+# Ve a: https://github.com/mmoyac/mcn_aprobaciones_backend
+# GitHub te mostrará un botón "Compare & pull request"
+# Llena la plantilla del PR con toda la información
+# Espera la aprobación del administrador
 ```
+
+**📖 Para más detalles sobre Pull Requests, ver [docs/PULL_REQUESTS.md](docs/PULL_REQUESTS.md)**
 
 ### Buenas Prácticas para Commits
 
