@@ -58,14 +58,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose to VPS
+      - name: Copy files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.prod.yml,nginx/mcn-backend.conf"
           target: "/root/docker/mcn/"
           strip_components: 0
 
@@ -79,12 +79,32 @@ jobs:
           script: |
             echo "🚀 Iniciando despliegue en VPS..."
             
-            # Crear directorio si no existe
+            # Crear directorios necesarios
             mkdir -p /root/docker/mcn
+            mkdir -p /root/docker/mcn/nginx/conf.d
             cd /root/docker/mcn
             
             # Renombrar docker-compose.prod.yml a docker-compose.yml
             mv docker-compose.prod.yml docker-compose.yml 2>/dev/null || true
+            
+            # Copiar configuración de Nginx
+            echo "📋 Copiando configuración de Nginx..."
+            cp nginx/mcn-backend.conf nginx/conf.d/mcn-backend.conf 2>/dev/null || true
+            
+            # Obtener certificado SSL si no existe
+            if [ ! -d /etc/letsencrypt/live/api.lexastech.cl ]; then
+              echo "🔐 Obteniendo certificado SSL..."
+              docker-compose -f /root/docker/docker-compose.yml run --rm certbot certonly --webroot \
+                --webroot-path=/var/www/certbot \
+                -d api.lexastech.cl \
+                --email mmoyac@lexastech.cl \
+                --agree-tos \
+                --no-eff-email \
+                --non-interactive || echo "⚠️ No se pudo obtener certificado (puede que ya exista o Nginx no esté corriendo)"
+              
+              # Recargar Nginx si el certificado se obtuvo
+              docker exec masas_estacion_nginx nginx -s reload 2>/dev/null || echo "ℹ️ Nginx se recargará después"
+            fi
             
             # Descargar última imagen
             echo "📦 Descargando imagen desde Docker Hub..."
