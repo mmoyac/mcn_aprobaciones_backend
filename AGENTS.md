@@ -40,13 +40,25 @@ El código fuente del backend (`mcn-aprobaciones-backend`) utiliza una arquitect
 * **Usuario:** lexasdulce
 * **Database:** lexascl_mga
 
-## 2. 🐳 Configuración del Entorno de Desarrollo
+## 3. 🐳 Configuración del Entorno
 
-### 2.1. Desarrollo Local
+### 3.1. Desarrollo Local
 
 Se requiere **Python 3.9+** y entorno virtual (`.venv`).
 
-### 2.2. Variables de Entorno (`.env`)
+### 3.2. Arquitectura de Producción (VPS)
+
+**Nginx Proxy Centralizado:** `/root/docker/nginx-proxy`
+- Maneja puertos 80/443 para TODOS los dominios del VPS
+- Certbot integrado con renovación automática
+- Ver documentación: [`nginx-proxy/README.md`](nginx-proxy/README.md)
+
+**MCN Backend:** `/root/docker/mcn`
+- Solo contenedor backend (sin nginx propio)
+- Accesible internamente en `mcn_backend:8000`
+- Conectado a red `general-net`
+
+### 3.3. Variables de Entorno (`.env`)
 
 El archivo **`.env`** en la raíz del proyecto es la fuente de configuración.
 
@@ -73,8 +85,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 Para despliegue, se utiliza Docker:
 - **Dockerfile**: Imagen base Python 3.11-slim con dependencias
-- **docker-compose.yml**: Orquestación del servicio backend
+- **docker-compose.yml**: Desarrollo local
+- **docker-compose.prod.yml**: Producción (solo backend, proxy centralizado maneja SSL)
 - **Health Check**: Verifica `/health` cada 30 segundos
+- **Nginx Proxy**: `/root/docker/nginx-proxy` - Proxy reverso centralizado (80/443)
 
 ## 📁 Ubicación del DDL
 
@@ -182,6 +196,7 @@ ruff check --fix app/
 - **[docs/PULL_REQUESTS.md](docs/PULL_REQUESTS.md)** - Flujo de trabajo con PRs
 - **[docs/SETUP.md](docs/SETUP.md)** - Guía de instalación detallada
 - **[docs/GIT.md](docs/GIT.md)** - Información del repositorio Git
+- **[nginx-proxy/README.md](nginx-proxy/README.md)** - 🆕 Nginx proxy centralizado y gestión de dominios
 
 ---
 
