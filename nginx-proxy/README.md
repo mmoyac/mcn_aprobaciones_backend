@@ -183,9 +183,14 @@ docker exec nginx_proxy nginx -t
 
 ## 📋 Dominios Activos
 
-| Dominio | Contenedor | Puerto | Estado |
-|---------|------------|--------|--------|
-| `api.lexastech.cl` | `mcn_backend` | 8000 | ✅ Activo |
+| Dominio | Contenedor | Puerto | Proyecto | Estado |
+|---------|------------|--------|----------|--------|
+| `api.lexastech.cl` | `mcn_backend` | 8000 | MCN Aprobaciones | ✅ Activo |
+| `masasestacion.cl` | `masas_estacion_frontend` | 3000 | Masas Estación | ✅ Activo |
+| `www.masasestacion.cl` | `masas_estacion_frontend` | 3000 | Masas Estación | ✅ Activo |
+| `api.masasestacion.cl` | `masas_estacion_backend` | 8000 | Masas Estación | ✅ Activo |
+| `admin.masasestacion.cl` | `masas_estacion_backoffice` | 3000 | Masas Estación | ✅ Activo |
+| `n8n.masasestacion.cl` | `n8n` | 5678 | n8n Automation | ✅ Activo |
 
 ## 🔐 Gestión de Certificados
 
