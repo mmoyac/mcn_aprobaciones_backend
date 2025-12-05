@@ -44,6 +44,21 @@ git push origin feature/mi-feature
 # 4. Crear PR en GitHub.com
 ```
 
+### Para PROBAR un PR localmente (Administrador):
+```bash
+# Método rápido: Descargar PR #5
+git fetch origin pull/5/head:pr-5
+git checkout pr-5
+
+# Probar
+uvicorn app.main:app --reload
+pytest
+
+# Volver a main
+git checkout main
+git branch -D pr-5
+```
+
 **📖 Instrucciones detalladas abajo ↓**
 
 ---
@@ -345,7 +360,80 @@ Puedes instalar la app móvil de GitHub para recibir notificaciones push:
    - Puedes agregar comentarios en líneas específicas
    - Puedes solicitar cambios
 
-4. **Opciones:**
+4. **🧪 PROBAR LOCALMENTE (Recomendado):**
+   
+   Antes de aprobar, puedes probar el código localmente:
+
+   **Método 1: Usar el número del PR**
+   ```bash
+   # Descargar el PR #5 (reemplaza con el número del PR)
+   git fetch origin pull/5/head:pr-5
+   
+   # Cambiar a esa rama
+   git checkout pr-5
+   
+   # Instalar dependencias (por si acaso)
+   pip install -r requirements.txt
+   
+   # Ejecutar el servidor
+   uvicorn app.main:app --reload
+   
+   # Probar los endpoints
+   # - Abre http://localhost:8000/docs
+   # - Prueba los cambios
+   # - Ejecuta tests: pytest
+   
+   # Si todo está bien, vuelve a main
+   git checkout main
+   
+   # Elimina la rama temporal
+   git branch -D pr-5
+   ```
+
+   **Método 2: Desde Fork del colaborador**
+   ```bash
+   # Agregar el fork del colaborador como remote temporal
+   git remote add colaborador https://github.com/colaborador/mcn_aprobaciones_backend.git
+   
+   # Descargar sus ramas
+   git fetch colaborador
+   
+   # Cambiar a su rama
+   git checkout colaborador/feature/nueva-funcionalidad
+   
+   # Probar el código
+   uvicorn app.main:app --reload
+   
+   # Cuando termines, vuelve a main
+   git checkout main
+   
+   # Eliminar el remote temporal
+   git remote remove colaborador
+   ```
+
+   **Método 3: Usar GitHub CLI (gh)**
+   ```bash
+   # Instalar GitHub CLI: https://cli.github.com/
+   
+   # Checkout del PR #5
+   gh pr checkout 5
+   
+   # Probar el código
+   uvicorn app.main:app --reload
+   
+   # Volver a main
+   git checkout main
+   ```
+
+   **✅ Qué verificar al probar:**
+   - ✅ El servidor inicia sin errores
+   - ✅ Los tests pasan: `pytest`
+   - ✅ Los nuevos endpoints funcionan
+   - ✅ No hay errores en la consola
+   - ✅ La documentación Swagger se ve correcta
+   - ✅ El código sigue las convenciones del proyecto
+
+5. **Opciones después de revisar:**
 
    **✅ Aprobar y fusionar:**
    ```
@@ -370,13 +458,51 @@ Puedes instalar la app móvil de GitHub para recibir notificaciones push:
    - Haz clic en "Close pull request"
    ```
 
-5. **Después de fusionar:**
+6. **Después de fusionar:**
    - La rama del PR puede eliminarse automáticamente (configurable)
    - El colaborador debe actualizar su rama local:
      ```bash
      git checkout main
      git pull origin main
      ```
+
+---
+
+## 🧪 Checklist de Revisión de PRs
+
+Usa este checklist al revisar un Pull Request:
+
+### Revisión de Código
+- [ ] El código sigue PEP 8 y las convenciones del proyecto
+- [ ] No hay código comentado o debug prints olvidados
+- [ ] Los nombres de variables y funciones son descriptivos
+- [ ] El código está documentado (docstrings)
+- [ ] No hay imports innecesarios
+
+### Funcionalidad
+- [ ] El código hace lo que dice la descripción del PR
+- [ ] No rompe funcionalidades existentes
+- [ ] Los cambios tienen sentido en el contexto del proyecto
+
+### Tests
+- [ ] Hay tests para el nuevo código
+- [ ] Los tests existentes siguen pasando
+- [ ] Los tests cubren casos edge
+
+### Seguridad
+- [ ] No hay credenciales hardcodeadas
+- [ ] No se exponen datos sensibles
+- [ ] Las validaciones de entrada son adecuadas
+
+### Performance
+- [ ] No hay queries N+1
+- [ ] El código es eficiente
+- [ ] No hay memory leaks evidentes
+
+### Documentación
+- [ ] La documentación está actualizada
+- [ ] Los endpoints nuevos están documentados
+- [ ] El README se actualizó si es necesario
 
 ---
 
