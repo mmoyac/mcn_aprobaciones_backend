@@ -125,11 +125,63 @@ Esta guía explica cómo configurar el repositorio para que los colaboradores tr
 
 ---
 
+## 🔔 Cómo Te Enteras de un Pull Request
+
+### Notificaciones Automáticas
+
+Cuando alguien crea un PR, recibirás notificaciones de **3 formas**:
+
+#### 1️⃣ **Email** (Automático)
+- GitHub envía un email a tu dirección registrada
+- Asunto: `[mmoyac/mcn_aprobaciones_backend] Título del PR (#número)`
+- Contiene descripción del PR y enlace directo
+
+#### 2️⃣ **Notificaciones de GitHub** (Campana 🔔)
+- Ve a https://github.com/notifications
+- Aparecerá con icono de PR
+- Click para ir directamente al PR
+
+#### 3️⃣ **Badge en el Repositorio**
+- Ve a https://github.com/mmoyac/mcn_aprobaciones_backend
+- Verás un número en la pestaña **Pull requests**
+- Ejemplo: `Pull requests (2)` indica 2 PRs pendientes
+
+### Configurar Notificaciones por Email
+
+Para asegurarte de recibir emails:
+
+1. Ve a **Settings** → **Notifications** en tu perfil de GitHub
+2. En "Participating, @mentions and custom":
+   - ✅ Email
+   - ✅ Web and Mobile
+3. En "Watching":
+   - Puedes activar/desactivar según prefieras
+
+### Ver Todos los PRs Pendientes
+
+**URL Directa:**
+```
+https://github.com/mmoyac/mcn_aprobaciones_backend/pulls
+```
+
+**Filtros útiles:**
+- `is:open` - Solo PRs abiertos
+- `is:open is:pr author:username` - PRs de un colaborador específico
+- `is:open review:required` - PRs que necesitan revisión
+
+### Aplicación Móvil de GitHub
+
+Puedes instalar la app móvil de GitHub para recibir notificaciones push:
+- **Android**: https://play.google.com/store/apps/details?id=com.github.android
+- **iOS**: https://apps.apple.com/app/github/id1477376905
+
+---
+
 ## ✅ Proceso de Revisión (Para Ti)
 
 ### Cuando te llegue un Pull Request:
 
-1. **Recibes notificación por email y en GitHub**
+1. **Recibes notificación por email y en GitHub** (ver sección anterior)
 
 2. **Revisas el PR:**
    - Ve a **Pull requests** en el repositorio
@@ -308,6 +360,32 @@ Settings → Collaborators → Cambiar role a "Admin" (temporalmente)
 **Si quieres ver todos los PRs:**
 ```
 https://github.com/mmoyac/mcn_aprobaciones_backend/pulls
+```
+
+---
+
+## 📧 Resumen de Notificaciones
+
+| Método | Automático | Configuración Necesaria |
+|--------|-----------|-------------------------|
+| Email | ✅ Sí | Verificar en Settings → Notifications |
+| Campana GitHub | ✅ Sí | Ya activado por defecto |
+| Badge en Repo | ✅ Sí | Ninguna |
+| App Móvil | ⚠️ Opcional | Instalar app |
+
+### Email de Ejemplo que Recibirás:
+
+```
+De: notifications@github.com
+Asunto: [mmoyac/mcn_aprobaciones_backend] Add: Endpoint para eliminar presupuestos (#1)
+
+juanperez wants to merge 2 commits into main from feature/delete-presupuesto
+
+Changes:
+- Added new DELETE endpoint
+- Updated documentation
+
+View Pull Request: https://github.com/mmoyac/mcn_aprobaciones_backend/pull/1
 ```
 
 ---
