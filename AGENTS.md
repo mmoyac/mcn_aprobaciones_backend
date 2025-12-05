@@ -122,14 +122,30 @@ Se ejecuta en cada push y PR:
 - Sube reporte de cobertura a Codecov
 
 #### Workflow 2: Docker Build & Push (`.github/workflows/docker-publish.yml`)
-Se ejecuta en push a `main` y en tags:
+Se ejecuta manualmente (workflow_dispatch) o en tags de versión (v*):
 - Construye imagen Docker
 - Sube a Docker Hub automáticamente
-- Genera tags: `latest`, `main`, `v1.0.0`, `pr-123`, `main-abc1234`
+- Despliega en VPS vía SSH
+- Fuerza recreación del contenedor con `--force-recreate`
+- Genera tags: `latest`, `v1.0.0`, `v1.1.0`, etc.
 
 **Secrets requeridos en GitHub:**
 - `DOCKER_USERNAME`: Usuario de Docker Hub
 - `DOCKER_PASSWORD`: Access Token de Docker Hub
+- `VPS_HOST`: IP del VPS (168.231.96.205)
+- `VPS_USERNAME`: Usuario SSH (root)
+- `VPS_SSH_KEY`: Clave privada SSH
+- `VPS_PORT`: Puerto SSH (22)
+
+**Para desplegar nueva versión:**
+```bash
+# Crear tag de versión
+git tag -a v1.2.0 -m "Descripción de cambios"
+git push origin v1.2.0
+
+# O ejecutar manualmente desde GitHub Actions UI
+# https://github.com/mmoyac/mcn_aprobaciones_backend/actions/workflows/docker-publish.yml
+```
 
 ### 3.3. Migraciones Automáticas
 
@@ -139,11 +155,31 @@ Las migraciones se ejecutan automáticamente al iniciar el contenedor Docker (si
 
 ## 4. 📊 Endpoints Implementados
 
-### Presupuestos (`/api/v1/presupuestos`)
+### 🔐 Autenticación (`/api/v1/auth`)
+
+- **POST** `/login` - Autenticación con usuario y contraseña
+  - Retorna token JWT válido por 30 minutos
+  - Request: `{"usuario": "admin", "password": "123456"}`
+  - Response: `{"access_token": "...", "token_type": "bearer", "usuario": "admin", "nombre": "Administrador"}`
+
+### 👥 Usuarios (`/api/v1/usuarios`)
+
+- **GET** `/` - Lista todos los usuarios con paginación (requiere auth)
+- **GET** `/count` - Total de usuarios registrados (requiere auth)
+
+**Nota:** La contraseña (UserLlave) NO se expone en ninguna respuesta.
+
+### 📊 Presupuestos (`/api/v1/presupuestos`)
+
+**Todos los endpoints requieren autenticación JWT en header:** `Authorization: Bearer <token>`
 
 - **GET** `/indicadores` - Totales de presupuestos pendientes y aprobados
 - **GET** `/pendientes` - Lista presupuestos pendientes (Pre_vbLib=1 AND pre_vbgg=0)
-- **GET** `/aprobados` - Lista presupuestos aprobados (pre_vbgg=1)
+- **GET** `/aprobados?usuario={user}&fecha_desde={date}&fecha_hasta={date}` - Presupuestos aprobados filtrados por usuario y rango de fechas
+- **POST** `/aprobar` - Aprueba presupuesto (usuario se obtiene del token JWT)
+  - Request: `{"Loc_cod": 1, "pre_nro": 12345}`
+  - Valida que el usuario del token exista antes de aprobar
+  - Actualiza: pre_vbgg=1, pre_vbggDt, pre_vbggTime, pre_vbggUsu
 
 **Paginación:** Todos los endpoints de lista soportan `skip` y `limit` (max 1000)
 
@@ -202,11 +238,15 @@ ruff check --fix app/
 
 ## 8. 🔐 Seguridad
 
+- **Autenticación JWT:** Todos los endpoints (excepto `/health` y `/auth/login`) requieren token JWT
+- **Token Expiration:** 30 minutos (configurable en `.env` con `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- **Bearer Token:** Formato `Authorization: Bearer <token>` en headers
 - No commitear archivos `.env` con credenciales reales
 - Usar `.env.example` como plantilla sin valores sensibles
-- Rotar `SECRET_KEY` en producción
+- Rotar `SECRET_KEY` en producción regularmente
 - Usar Access Tokens de Docker Hub en lugar de contraseñas
 - Configurar branch protection en GitHub (require PR approval)
+- Las contraseñas de usuarios NO se exponen en respuestas API
 
 ---
 
@@ -232,6 +272,16 @@ pip install -r requirements.txt
 
 ### ReDoc no carga (CDN bloqueado)
 El proyecto usa `unpkg.com` en lugar de `jsdelivr` para evitar bloqueos de tracking prevention.
+
+### Endpoint retorna 401 Unauthorized
+- Verificar que el token JWT esté incluido en header `Authorization: Bearer <token>`
+- Verificar que el token no haya expirado (30 minutos por defecto)
+- Obtener nuevo token con POST `/api/v1/auth/login`
+
+### Deploy no actualiza contenedor en VPS
+- El workflow incluye `--force-recreate` para asegurar actualización
+- Verificar que el tag de versión se creó correctamente
+- Logs del workflow en: https://github.com/mmoyac/mcn_aprobaciones_backend/actions
 
 ---
 
