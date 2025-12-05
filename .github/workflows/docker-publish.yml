@@ -83,7 +83,7 @@ jobs:
             docker run -d \
               --name mcn_backend \
               --restart unless-stopped \
-              -p 8000:8000 \
+              -p 8001:8000 \
               --env-file /root/docker/mcn/.env \
               -v /root/docker/mcn/logs:/app/logs \
               mmoyac/mcn_aprobaciones_backend:latest
@@ -104,7 +104,7 @@ jobs:
             
             # Verificar health check
             echo "🏥 Verificando health check..."
-            if curl -f http://localhost:8000/health; then
+            if curl -f http://localhost:8001/health; then
               echo "✅ Servicio respondiendo correctamente"
             else
               echo "⚠️ Advertencia: Health check falló, pero el contenedor está corriendo"
