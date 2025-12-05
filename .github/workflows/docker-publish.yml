@@ -55,6 +55,20 @@ jobs:
     if: github.event_name != 'pull_request'
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy docker-compose to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "docker-compose.prod.yml"
+          target: "/root/docker/mcn/"
+          strip_components: 0
+
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -69,24 +83,20 @@ jobs:
             mkdir -p /root/docker/mcn
             cd /root/docker/mcn
             
+            # Renombrar docker-compose.prod.yml a docker-compose.yml
+            mv docker-compose.prod.yml docker-compose.yml 2>/dev/null || true
+            
             # Descargar última imagen
             echo "📦 Descargando imagen desde Docker Hub..."
-            docker pull mmoyac/mcn_aprobaciones_backend:latest
+            docker-compose pull
             
-            # Detener y eliminar contenedor anterior si existe
-            echo "🛑 Deteniendo contenedor anterior..."
-            docker stop mcn_backend 2>/dev/null || true
-            docker rm mcn_backend 2>/dev/null || true
+            # Detener y eliminar contenedor anterior
+            echo "🛑 Deteniendo servicios anteriores..."
+            docker-compose down
             
-            # Iniciar nuevo contenedor
-            echo "▶️ Iniciando nuevo contenedor..."
-            docker run -d \
-              --name mcn_backend \
-              --restart unless-stopped \
-              -p 8001:8000 \
-              --env-file /root/docker/mcn/.env \
-              -v /root/docker/mcn/logs:/app/logs \
-              mmoyac/mcn_aprobaciones_backend:latest
+            # Iniciar servicios con docker-compose
+            echo "▶️ Iniciando servicios con docker-compose..."
+            docker-compose up -d
             
             # Esperar a que el contenedor esté listo
             echo "⏳ Esperando que el servicio esté listo..."
@@ -98,7 +108,7 @@ jobs:
               docker ps | grep mcn_backend
             else
               echo "❌ Error: El contenedor no está corriendo"
-              docker logs mcn_backend
+              docker-compose logs backend
               exit 1
             fi
             
