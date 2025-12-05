@@ -10,7 +10,8 @@ Esta guía explica cómo configurar el despliegue automático desde GitHub Actio
 - **Usuario:** root
 - **Directorio de trabajo:** /root/docker/mcn
 - **Puerto SSH:** 22 (default)
-- **Puerto HTTP:** 8001
+- **Puerto HTTP:** 80
+- **Puerto HTTPS:** 443
 
 ---
 
@@ -152,7 +153,9 @@ services:
     container_name: mcn_backend
     restart: unless-stopped
     ports:
-      - "8001:8000"
+    ports:
+      - "80:80"
+      - "443:443"
     env_file:
       - .env
     volumes:
@@ -186,7 +189,9 @@ ssh -i ruta/a/llave root@168.231.96.205
 # En el VPS
 docker ps
 docker pull mmoyac/mcn_aprobaciones_backend:latest
-curl http://localhost:8001/health
+curl http://localhost/health
+# o
+curl https://api.lexastech.cl/health
 ```
 
 ---
@@ -221,17 +226,17 @@ docker ps
 docker logs -f mcn_backend
 
 # Verificar que responde
-curl http://localhost:8000/health
+curl http://localhost/health
 ```
 
 ### Desde Internet:
 
 ```bash
 # Verificar endpoint público
-curl http://168.231.96.205:8001/health
+curl https://api.lexastech.cl/health
 ```
 
-**📖 Documentación API:** http://168.231.96.205:8001/docs
+**📖 Documentación API:** https://api.lexastech.cl/docs
 
 ---
 
@@ -239,10 +244,11 @@ curl http://168.231.96.205:8001/health
 
 ### Recomendaciones:
 
-1. **Firewall:** Asegúrate de que solo el puerto 8001 y 22 (SSH) estén abiertos
+1. **Firewall:** Asegúrate de que los puertos 80, 443 y 22 (SSH) estén abiertos
    ```bash
    ufw allow 22
-   ufw allow 8001
+   ufw allow 80
+   ufw allow 443
    ufw enable
    ```
 
