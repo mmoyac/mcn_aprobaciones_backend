@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: mcn_aprobaciones_backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Variables de Base de Datos
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      # Configuración de la aplicación
+      - APP_ENV=${APP_ENV:-production}
+      - DEBUG=${DEBUG:-False}
+      - API_V1_PREFIX=${API_V1_PREFIX:-/api/v1}
+      # Seguridad
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mcn_network
+
+networks:
+  mcn_network:
+    driver: bridge

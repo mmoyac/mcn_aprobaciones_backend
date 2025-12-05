@@ -25,8 +25,30 @@ Esta guía incluye:
 - MySQL 5.7.7 - 5.7.23
 - Git
 - pip
+- Docker (opcional, para despliegue)
 
-## 🚀 Instalación Rápida
+## 🐳 Instalación con Docker (Recomendado)
+
+```bash
+# Usar imagen de Docker Hub
+docker run -d \
+  --name mcn_backend \
+  -p 8000:8000 \
+  -e DB_USER=tu_usuario \
+  -e DB_PASSWORD=tu_password \
+  -e DB_NAME=lexascl_mga \
+  -e DB_HOST=179.27.210.204 \
+  -e DB_PORT=3306 \
+  -e SECRET_KEY=tu-secret-key \
+  mmoyac/mcn_aprobaciones_backend:latest
+
+# O usar Docker Compose
+docker-compose up -d
+```
+
+**📖 Documentación completa:** [docs/DOCKER.md](docs/DOCKER.md)
+
+## 🚀 Instalación Manual
 
 ```bash
 # 1. Clonar el repositorio
@@ -95,13 +117,43 @@ La documentación interactiva de la API está disponible en:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+### 📚 Documentación Adicional
+
+- **[API.md](docs/API.md)** - Documentación completa de endpoints
+- **[DOCKER.md](docs/DOCKER.md)** - Despliegue con Docker y CI/CD
+- **[PULL_REQUESTS.md](docs/PULL_REQUESTS.md)** - Flujo de trabajo con PRs
+- **[GIT.md](docs/GIT.md)** - Información del repositorio
+- **[SETUP.md](docs/SETUP.md)** - Guía de instalación detallada
+
 ## 🛠️ Stack Tecnológico
 
 - **Framework**: FastAPI
 - **ORM**: SQLAlchemy
 - **Base de Datos**: MySQL
+- **Contenedores**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions
 - **Testing**: pytest + httpx
 - **Linting**: Black + Ruff
+
+## 🚢 Despliegue
+
+### Docker Hub
+
+Imagen oficial: `mmoyac/mcn_aprobaciones_backend:latest`
+
+```bash
+docker pull mmoyac/mcn_aprobaciones_backend:latest
+```
+
+### GitHub Actions
+
+El proyecto incluye workflows automáticos para:
+- ✅ Tests automáticos en cada PR
+- ✅ Linting y formateo de código
+- ✅ Build y push a Docker Hub en cada push a `main`
+- ✅ Generación de tags automáticos
+
+**Ver:** [docs/DOCKER.md](docs/DOCKER.md) para instrucciones detalladas
 
 ## 👥 Colaboración
 
