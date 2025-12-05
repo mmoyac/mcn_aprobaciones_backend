@@ -48,3 +48,70 @@ jobs:
 
       - name: Image digest
         run: echo ${{ steps.meta.outputs.digest }}
+
+  deploy-to-vps:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            echo "🚀 Iniciando despliegue en VPS..."
+            
+            # Crear directorio si no existe
+            mkdir -p /root/docker/mcn
+            cd /root/docker/mcn
+            
+            # Descargar última imagen
+            echo "📦 Descargando imagen desde Docker Hub..."
+            docker pull mmoyac/mcn_aprobaciones_backend:latest
+            
+            # Detener y eliminar contenedor anterior si existe
+            echo "🛑 Deteniendo contenedor anterior..."
+            docker stop mcn_backend 2>/dev/null || true
+            docker rm mcn_backend 2>/dev/null || true
+            
+            # Iniciar nuevo contenedor
+            echo "▶️ Iniciando nuevo contenedor..."
+            docker run -d \
+              --name mcn_backend \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              --env-file /root/docker/mcn/.env \
+              -v /root/docker/mcn/logs:/app/logs \
+              mmoyac/mcn_aprobaciones_backend:latest
+            
+            # Esperar a que el contenedor esté listo
+            echo "⏳ Esperando que el servicio esté listo..."
+            sleep 10
+            
+            # Verificar que el contenedor está corriendo
+            if docker ps | grep -q mcn_backend; then
+              echo "✅ Contenedor iniciado correctamente"
+              docker ps | grep mcn_backend
+            else
+              echo "❌ Error: El contenedor no está corriendo"
+              docker logs mcn_backend
+              exit 1
+            fi
+            
+            # Verificar health check
+            echo "🏥 Verificando health check..."
+            if curl -f http://localhost:8000/health; then
+              echo "✅ Servicio respondiendo correctamente"
+            else
+              echo "⚠️ Advertencia: Health check falló, pero el contenedor está corriendo"
+            fi
+            
+            # Limpiar imágenes antiguas
+            echo "🧹 Limpiando imágenes antiguas..."
+            docker image prune -f
+            
+            echo "🎉 Despliegue completado exitosamente!"
