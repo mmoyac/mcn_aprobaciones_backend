@@ -4,6 +4,50 @@ Esta guía explica cómo configurar el repositorio para que los colaboradores tr
 
 ---
 
+## 📋 Guía Rápida para Colaboradores
+
+### Si NO eres colaborador directo (Fork):
+```bash
+# 1. Hacer fork en GitHub.com
+# 2. Clonar TU fork
+git clone https://github.com/tu-usuario/mcn_aprobaciones_backend.git
+cd mcn_aprobaciones_backend
+
+# 3. Configurar upstream
+git remote add upstream https://github.com/mmoyac/mcn_aprobaciones_backend.git
+
+# 4. Crear rama
+git checkout -b feature/mi-feature
+
+# 5. Hacer cambios, commit y push a TU fork
+git add .
+git commit -m "Add: Mi cambio"
+git push origin feature/mi-feature
+
+# 6. Crear PR desde tu fork en GitHub.com
+```
+
+### Si ERES colaborador directo (Rama):
+```bash
+# 1. Clonar el repositorio original
+git clone https://github.com/mmoyac/mcn_aprobaciones_backend.git
+cd mcn_aprobaciones_backend
+
+# 2. Crear rama
+git checkout -b feature/mi-feature
+
+# 3. Hacer cambios, commit y push
+git add .
+git commit -m "Add: Mi cambio"
+git push origin feature/mi-feature
+
+# 4. Crear PR en GitHub.com
+```
+
+**📖 Instrucciones detalladas abajo ↓**
+
+---
+
 ## 🎯 Objetivo
 
 - Los colaboradores pueden hacer fork o trabajar en ramas
@@ -58,38 +102,147 @@ Esta guía explica cómo configurar el repositorio para que los colaboradores tr
 
 ### Opción A: Fork del Repositorio (Colaboradores Externos)
 
-1. **El colaborador hace Fork:**
-   - Va a https://github.com/mmoyac/mcn_aprobaciones_backend
-   - Hace clic en **Fork** (arriba a la derecha)
-   - Clona su fork:
-     ```bash
-     git clone https://github.com/su-usuario/mcn_aprobaciones_backend.git
-     cd mcn_aprobaciones_backend
-     ```
+**Ideal para:** Personas que NO son colaboradores directos del repositorio.
 
-2. **Configura el repositorio original como upstream:**
-   ```bash
-   git remote add upstream https://github.com/mmoyac/mcn_aprobaciones_backend.git
+#### Paso 1: Hacer Fork en GitHub
+
+1. Ve a: **https://github.com/mmoyac/mcn_aprobaciones_backend**
+2. Haz clic en el botón **Fork** (arriba a la derecha)
+3. Selecciona tu cuenta personal
+4. Espera a que GitHub cree tu fork (copia del repositorio)
+
+#### Paso 2: Clonar TU Fork (no el original)
+
+```bash
+# Clona TU fork (reemplaza 'tu-usuario' con tu nombre de usuario de GitHub)
+git clone https://github.com/tu-usuario/mcn_aprobaciones_backend.git
+cd mcn_aprobaciones_backend
+```
+
+#### Paso 3: Configurar el Repositorio Original como "Upstream"
+
+Esto te permite mantener tu fork actualizado con el repositorio original:
+
+```bash
+# Agregar el repo original como upstream
+git remote add upstream https://github.com/mmoyac/mcn_aprobaciones_backend.git
+
+# Verificar que se agregó correctamente
+git remote -v
+# Deberías ver:
+# origin    https://github.com/tu-usuario/mcn_aprobaciones_backend.git (fetch)
+# origin    https://github.com/tu-usuario/mcn_aprobaciones_backend.git (push)
+# upstream  https://github.com/mmoyac/mcn_aprobaciones_backend.git (fetch)
+# upstream  https://github.com/mmoyac/mcn_aprobaciones_backend.git (push)
+```
+
+#### Paso 4: Configurar Variables de Entorno
+
+```bash
+# Copia el archivo de ejemplo
+copy .env.example .env  # Windows
+# cp .env.example .env  # Linux/Mac
+
+# Edita el .env con las credenciales (solicítalas al administrador)
+```
+
+#### Paso 5: Instalar Dependencias
+
+```bash
+# Crear entorno virtual
+python -m venv .venv
+
+# Activar entorno virtual
+.\.venv\Scripts\Activate.ps1  # Windows PowerShell
+# .venv\Scripts\activate.bat   # Windows CMD
+# source .venv/bin/activate    # Linux/Mac
+
+# Instalar dependencias
+pip install -r requirements.txt
+```
+
+#### Paso 6: Crear una Rama para tu Feature
+
+```bash
+# SIEMPRE trabaja en una rama, NUNCA directamente en main
+git checkout -b feature/nombre-descriptivo
+
+# Ejemplos de buenos nombres de rama:
+# feature/endpoint-delete-presupuesto
+# fix/validacion-fechas
+# docs/actualizar-api-docs
+```
+
+#### Paso 7: Hacer tus Cambios
+
+```bash
+# 1. Realiza tus cambios en el código
+# 2. Prueba localmente
+uvicorn app.main:app --reload
+
+# 3. Agrega los archivos modificados
+git add .
+
+# 4. Haz commit con mensaje descriptivo
+git commit -m "Add: Endpoint para eliminar presupuestos"
+
+# 5. Sube a TU fork (origin)
+git push origin feature/nombre-descriptivo
+```
+
+#### Paso 8: Crear Pull Request
+
+1. **Ve a TU fork en GitHub:**
+   ```
+   https://github.com/tu-usuario/mcn_aprobaciones_backend
    ```
 
-3. **Crea una rama para su feature:**
-   ```bash
-   git checkout -b feature/nueva-funcionalidad
+2. **Verás un banner amarillo** que dice:
    ```
-
-4. **Hace sus cambios y commits:**
-   ```bash
-   git add .
-   git commit -m "Add: Nueva funcionalidad"
-   git push origin feature/nueva-funcionalidad
+   "feature/nombre-descriptivo had recent pushes"
+   [Compare & pull request]
    ```
+   Haz clic en **Compare & pull request**
 
-5. **Crea Pull Request:**
-   - Va a su fork en GitHub
-   - Hace clic en **Compare & pull request**
-   - Llena la descripción del PR
-   - Selecciona base: `mmoyac/main` <- compare: `su-usuario/feature/nueva-funcionalidad`
-   - Hace clic en **Create pull request**
+3. **Configura el Pull Request:**
+   - **Base repository**: `mmoyac/mcn_aprobaciones_backend`
+   - **Base branch**: `main`
+   - **Head repository**: `tu-usuario/mcn_aprobaciones_backend`
+   - **Compare branch**: `feature/nombre-descriptivo`
+
+4. **Llena la plantilla del PR:**
+   - Título claro y descriptivo
+   - Descripción completa (usa la plantilla que aparece)
+   - Marca los checkboxes correspondientes
+
+5. **Haz clic en "Create pull request"**
+
+#### Paso 9: Esperar Revisión
+
+- El administrador recibirá una notificación
+- Revisa los comentarios si los hay
+- Realiza cambios si se solicitan
+
+#### Paso 10: Mantener tu Fork Actualizado
+
+Antes de crear un nuevo feature, actualiza tu fork:
+
+```bash
+# Cambiar a main
+git checkout main
+
+# Traer cambios del repositorio original
+git fetch upstream
+
+# Fusionar los cambios
+git merge upstream/main
+
+# Actualizar tu fork en GitHub
+git push origin main
+
+# Ahora puedes crear una nueva rama actualizada
+git checkout -b feature/nuevo-feature
+```
 
 ### Opción B: Ramas en el Mismo Repositorio (Colaboradores Internos)
 
