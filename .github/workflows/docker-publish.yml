@@ -117,7 +117,7 @@ jobs:
             
             # Verificar health check
             echo "🏥 Verificando health check..."
-            if curl -f http://localhost:80/health; then
+            if curl -f http://localhost:8001/health; then
               echo "✅ Servicio respondiendo correctamente"
             else
               echo "⚠️ Advertencia: Health check falló, pero el contenedor está corriendo"

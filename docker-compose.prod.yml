@@ -1,11 +1,10 @@
 # =====================================
 # Docker Compose - MCN Aprobaciones Backend
-# Para VPS con red general-net y Nginx
+# Solo backend, el proxy/SSL lo maneja /root/docker/nginx-proxy
 # =====================================
 version: '3.8'
 
 services:
-  # Backend API
   backend:
     image: mmoyac/mcn_aprobaciones_backend:latest
     container_name: mcn_backend
@@ -23,44 +22,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # ============================================
-  # Nginx - Reverse Proxy con SSL
-  # ============================================
-  nginx:
-    image: nginx:alpine
-    container_name: mcn_nginx
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certbot/conf:/etc/letsencrypt:ro
-      - ./nginx/certbot/www:/var/www/certbot:ro
-    networks:
-      - general-net
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ============================================
-  # Certbot - Renovación automática SSL
-  # ============================================
-  certbot:
-    image: certbot/certbot
-    container_name: mcn_certbot
-    restart: unless-stopped
-    volumes:
-      - ./nginx/certbot/conf:/etc/letsencrypt
-      - ./nginx/certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
-# Red externa (debe existir en el VPS)
 networks:
   general-net:
     external: true
