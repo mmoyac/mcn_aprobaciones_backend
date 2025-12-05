@@ -121,6 +121,7 @@ La documentación interactiva de la API está disponible en:
 
 - **[API.md](docs/API.md)** - Documentación completa de endpoints
 - **[DOCKER.md](docs/DOCKER.md)** - Despliegue con Docker y CI/CD
+- **[CONFIGURACION_GITHUB_SECRETS.md](docs/CONFIGURACION_GITHUB_SECRETS.md)** - Configurar Docker Hub en GitHub Actions
 - **[PULL_REQUESTS.md](docs/PULL_REQUESTS.md)** - Flujo de trabajo con PRs
 - **[GIT.md](docs/GIT.md)** - Información del repositorio
 - **[SETUP.md](docs/SETUP.md)** - Guía de instalación detallada
@@ -153,7 +154,9 @@ El proyecto incluye workflows automáticos para:
 - ✅ Build y push a Docker Hub en cada push a `main`
 - ✅ Generación de tags automáticos
 
-**Ver:** [docs/DOCKER.md](docs/DOCKER.md) para instrucciones detalladas
+**📖 Documentación:**
+- **[docs/DOCKER.md](docs/DOCKER.md)** - Guía completa de despliegue con Docker
+- **[docs/CONFIGURACION_GITHUB_SECRETS.md](docs/CONFIGURACION_GITHUB_SECRETS.md)** - Configurar secrets para Docker Hub
 
 ## 👥 Colaboración
 

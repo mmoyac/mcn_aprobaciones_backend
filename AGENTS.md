@@ -178,6 +178,7 @@ ruff check --fix app/
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guía para colaboradores
 - **[docs/API.md](docs/API.md)** - Documentación completa de endpoints
 - **[docs/DOCKER.md](docs/DOCKER.md)** - Despliegue con Docker y CI/CD
+- **[docs/CONFIGURACION_GITHUB_SECRETS.md](docs/CONFIGURACION_GITHUB_SECRETS.md)** - Configurar secrets en GitHub
 - **[docs/PULL_REQUESTS.md](docs/PULL_REQUESTS.md)** - Flujo de trabajo con PRs
 - **[docs/SETUP.md](docs/SETUP.md)** - Guía de instalación detallada
 - **[docs/GIT.md](docs/GIT.md)** - Información del repositorio Git
