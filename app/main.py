@@ -49,6 +49,38 @@ async def health_check():
     return {"status": "healthy", "environment": settings.APP_ENV}
 
 
+@app.get("/db-test")
+async def db_test():
+    """Endpoint temporal para probar conexión a BD."""
+    from sqlalchemy import text
+    from app.db.session import SessionLocal
+    import traceback
+    
+    try:
+        db = SessionLocal()
+        # Intentar una consulta simple
+        result = db.execute(text("SELECT 1")).scalar()
+        return {
+            "status": "success",
+            "result": result,
+            "connection_info": {
+                "host": settings.DB_HOST,
+                "user": settings.DB_USER,
+                "db": settings.DB_NAME
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
     """
