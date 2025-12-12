@@ -1,10 +1,11 @@
 name: Build and Push to Docker Hub
 
 on:
-  workflow_dispatch:  # Permite ejecución manual desde GitHub
+  workflow_dispatch:
   push:
+    branches: [ "main" ]
     tags:
-      - 'v*'  # Solo en tags de versión (v1.0.0, v1.0.1, etc.)
+      - 'v*'
 
 env:
   DOCKER_IMAGE: mmoyac/mcn_aprobaciones_backend
