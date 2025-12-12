@@ -44,8 +44,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+          no-cache: true
 
       - name: Image digest
         run: echo ${{ steps.meta.outputs.digest }}
@@ -90,6 +89,10 @@ jobs:
             # Renombrar archivos
             mv docker-compose.prod.yml docker-compose.yml 2>/dev/null || true
             mv .env.production .env 2>/dev/null || true
+            
+            # Limpiar imágenes antiguas del backend para forzar descarga
+            echo "🧹 Limpiando imágenes antiguas del backend..."
+            docker rmi mmoyac/mcn_aprobaciones_backend:latest 2>/dev/null || true
             
             # Descargar última imagen
             echo "📦 Descargando imagen desde Docker Hub..."
