@@ -43,6 +43,7 @@ class PresupuestoBase(BaseModel):
     pre_est: str = Field(..., description="Estado del presupuesto", max_length=1)
     pre_fec: date = Field(..., description="Fecha del presupuesto")
     pre_rut: int = Field(..., description="RUT del cliente")
+    cliente_nombre: str = Field(..., description="Nombre del cliente")
     pre_VenCod: int = Field(..., description="Código del vendedor")
     Pre_Neto: int = Field(..., description="Monto neto del presupuesto")
     Pre_vbLib: int = Field(..., description="VB Liberación (1=aprobado)")

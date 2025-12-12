@@ -1,8 +1,11 @@
 """
 Modelo SQLAlchemy para la tabla de presupuestos (cot013)
 """
-from sqlalchemy import Column, BigInteger, SmallInteger, CHAR, Date, DECIMAL, Text
-from app.db.session import Base
+from sqlalchemy import Column, BigInteger, SmallInteger, CHAR, Date, DECIMAL, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from app.db.base_class import Base
+# Importar Cliente aquí para evitar errores de referencia circular en strings de relationship
+from app.models.cliente import Cliente
 
 
 class Presupuesto(Base):
@@ -32,10 +35,13 @@ class Presupuesto(Base):
     
     # Relaciones
     sol_nro = Column(BigInteger)
-    pre_rut = Column(BigInteger, nullable=False, comment="RUT del cliente")
+    pre_rut = Column(BigInteger, ForeignKey('clientea.Cli_Code'), nullable=False, comment="RUT del cliente")
     pre_suc = Column(SmallInteger, nullable=False, comment="Sucursal del cliente")
     pre_VenCod = Column(SmallInteger, nullable=False, comment="Código del vendedor")
     
+    # Relación con Cliente
+    cliente = relationship(Cliente, foreign_keys=[pre_rut], lazy="joined")
+
     # Detalles
     pre_req = Column(CHAR(20), nullable=False)
     pre_ate = Column(CHAR(20), nullable=False)
@@ -110,5 +116,12 @@ class Presupuesto(Base):
     Pre_MailSubjet = Column(Text, nullable=False, comment="Asunto email")
     Pre_MailPara = Column(Text, nullable=False, comment="Destinatarios email")
     
+    @property
+    def cliente_nombre(self):
+        """Devuelve el nombre del cliente asociado"""
+        if self.cliente:
+            return self.cliente.Cli_Name.strip()  # .strip() porque CHAR suele tener espacios
+        return "Cliente Desconocido"
+
     def __repr__(self):
         return f"<Presupuesto(Loc_cod={self.Loc_cod}, pre_nro={self.pre_nro}, pre_est={self.pre_est})>"

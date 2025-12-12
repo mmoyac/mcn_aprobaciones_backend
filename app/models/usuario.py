@@ -26,4 +26,4 @@ class Usuario(Base):
     UserChPass = Column(String(1), nullable=False, comment="Cambio de contraseña")
     UserNameMail = Column(String(50), nullable=False, comment="Nombre para email")
     UserMail = Column(String(50), nullable=False, comment="Email")
-    UserGAMGUID = Column(String(40), nullable=False, comment="GUID GAM")
+

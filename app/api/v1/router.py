@@ -24,3 +24,11 @@ api_router.include_router(
     prefix="/usuarios",
     tags=["Usuarios"]
 )
+
+from app.api.v1.endpoints import ordenes_compra
+
+api_router.include_router(
+    ordenes_compra.router,
+    prefix="/ordenes-compra",
+    tags=["Ordenes de Compra"]
+)

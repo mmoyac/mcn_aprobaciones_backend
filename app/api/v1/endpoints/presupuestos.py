@@ -27,7 +27,7 @@ router = APIRouter()
     Retorna los indicadores principales de presupuestos:
     
     - **Pendientes**: Presupuestos liberados pero pendientes de aprobación de gerencia
-      (Pre_vbLib = 1 AND pre_vbgg = 0)
+      (Pre_vbLib = 1 AND pre_vbgg = 0 y pre_est <> 'N')
     - **Aprobados**: Presupuestos aprobados por gerencia general
       (pre_vbgg = 1)
     
@@ -58,6 +58,9 @@ async def obtener_indicadores(
             status_code=500,
             detail=f"Error al obtener indicadores: {str(e)}"
         )
+
+
+
 
 
 @router.get(
@@ -243,4 +246,59 @@ async def aprobar_presupuesto(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al aprobar presupuesto: {str(e)}"
+        )
+
+
+@router.post(
+    "/desaprobar",
+    response_model=PresupuestoAprobadoResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Desaprobar presupuesto",
+    description="""
+    Desaprueba un presupuesto específico revirtiendo sus estados:
+    - pre_vbgg = 0 (pendiente)
+    - pre_vbggDt = fecha original
+    - pre_vbggTime = vacío
+    - pre_vbggUsu = vacío
+    
+    **Requiere autenticación:** Token JWT en header Authorization.
+    """,
+    tags=["Presupuestos"]
+)
+async def desaprobar_presupuesto(
+    data: PresupuestoAprobar,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(get_current_user_id)
+) -> PresupuestoAprobadoResponse:
+    """
+    Desaprueba un presupuesto.
+    """
+    try:
+        resultado = PresupuestoService.desaprobar_presupuesto(
+            db,
+            loc_cod=data.Loc_cod,
+            pre_nro=data.pre_nro,
+            usuario=usuario
+        )
+        
+        # Como respuesta usamos el mismo modelo pero con datos revertidos
+        return PresupuestoAprobadoResponse(
+            success=True,
+            message="Presupuesto desaprobado exitosamente",
+            Loc_cod=resultado["Loc_cod"],
+            pre_nro=resultado["pre_nro"],
+            pre_vbggUsu="",
+            pre_vbggDt=resultado.get("pre_vbggDt") or resultado.get("pre_fec"), # fallback
+            pre_vbggTime=""
+        )
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al desaprobar presupuesto: {str(e)}"
         )
