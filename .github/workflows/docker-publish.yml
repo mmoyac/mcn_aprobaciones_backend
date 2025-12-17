@@ -93,18 +93,21 @@ jobs:
             # Limpiar imágenes antiguas del backend para forzar descarga
             echo "🧹 Limpiando imágenes antiguas del backend..."
             docker rmi mmoyac/mcn_aprobaciones_backend:latest 2>/dev/null || true
+            docker system prune -f
             
-            # Descargar última imagen
-            echo "📦 Descargando imagen desde Docker Hub..."
-            docker-compose pull
+            # Descargar última imagen SIEMPRE
+            echo "📦 Descargando imagen desde Docker Hub (FORZADO)..."
+            docker pull mmoyac/mcn_aprobaciones_backend:latest
+            docker-compose pull --ignore-pull-failures
             
-            # Detener y eliminar contenedor anterior
+            # Detener y eliminar contenedor anterior COMPLETAMENTE
             echo "🛑 Deteniendo servicios anteriores..."
-            docker-compose down
+            docker-compose down --volumes --remove-orphans
+            docker system prune -f
             
-            # Iniciar servicios con docker-compose (forzar recreación)
+            # Iniciar servicios con docker-compose (forzar recreación TOTAL)
             echo "▶️ Iniciando servicios con docker-compose..."
-            docker-compose up -d --force-recreate
+            docker-compose up -d --force-recreate --build --no-cache
             
             # Esperar a que los contenedores estén listos
             echo "⏳ Esperando que PostgreSQL esté listo..."
