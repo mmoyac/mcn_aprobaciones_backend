@@ -40,6 +40,15 @@ El código fuente del backend (`mcn-aprobaciones-backend`) utiliza una arquitect
 * **Usuario:** lexasdulce
 * **Database:** lexascl_mga
 
+## 🔌 Puertos Críticos
+
+| Entorno | Puerto | URL | Uso |
+| :--- | :--- | :--- | :--- |
+| **Desarrollo** | `8000` | http://localhost:8000 | Puerto libre en local |
+| **Producción** | `8001` | https://api.lexastech.cl | Puerto 8000 ocupado por Portainer en VPS |
+
+⚠️ **CRÍTICO:** En producción el puerto 8000 está ocupado por otro servicio. SIEMPRE usar puerto 8001 en `docker-compose.prod.yml`
+
 ## 3. 🐳 Configuración del Entorno
 
 ### 3.1. Desarrollo Local
@@ -55,8 +64,27 @@ Se requiere **Python 3.9+** y entorno virtual (`.venv`).
 
 **MCN Backend:** `/root/docker/mcn`
 - Solo contenedor backend (sin nginx propio)
+- ⚠️ **Puerto mapeado:** `8001:8000` (puerto 8000 ocupado en VPS)
+- Accesible externamente en `localhost:8001`
 - Accesible internamente en `mcn_backend:8000`
-- Conectado a red `general-net`
+- 🔥 **RED CRÍTICA:** `general-net` (externa, compartida con nginx_proxy)
+
+### 🌐 Red general-net (CRÍTICO)
+
+**Configuración obligatoria en producción:**
+```yaml
+networks:
+  general-net:
+    external: true
+```
+
+**Contenedores en general-net:**
+- `nginx_proxy` (proxy reverso centralizado)
+- `mcn_backend` (API backend)
+- `mcn_postgres` (base de datos PDF)
+- `mcn_frontend` (aplicación web)
+
+⚠️ **FUNDAMENTAL:** Sin `general-net` el nginx_proxy NO puede comunicarse con los servicios backend
 
 ### 3.3. Variables de Entorno (`.env`)
 
@@ -331,11 +359,19 @@ El archivo `conftest.py` configura automáticamente:
 
 ## 7. 🐛 Troubleshooting Común
 
-### Puerto 8000 en uso
+### Problemas de Puerto
+
+**Desarrollo (Puerto 8000 en uso):**
 ```bash
 # Windows PowerShell
 Get-NetTCPConnection -LocalPort 8000 | Select-Object OwningProcess | Stop-Process -Force
 ```
+
+**Producción (CRÍTICO - Configuración de puertos):**
+- ✅ **docker-compose.yml** (desarrollo): Sin mapeo de puertos - usa puerto interno 8000
+- ✅ **docker-compose.prod.yml** (producción): `ports: ["8001:8000"]` - OBLIGATORIO
+- ❌ **Error común:** Usar puerto 8000 en producción (ocupado por Portainer)
+- 🔧 **Solución:** Siempre verificar que docker-compose.prod.yml tenga el mapeo `8001:8000`
 
 ### Problemas con pydantic
 ```bash
@@ -348,6 +384,13 @@ pip install -r requirements.txt
 - Verificar que el servidor permite conexiones remotas
 - Validar credenciales en `.env`
 - Verificar firewall/puerto 3306
+
+### API no responde (nginx 502/504)
+- ✅ **Verificar red:** `docker network inspect general-net`
+- ✅ **Contenedores en red:** nginx_proxy y mcn_backend deben estar en general-net
+- ✅ **Conectividad interna:** `docker exec nginx_proxy wget -q -O - http://mcn_backend:8000/health`
+- ✅ **Certificado SSL:** Verificar `/etc/letsencrypt/live/api.lexastech.cl/`
+- ✅ **Recargar nginx:** `docker exec nginx_proxy nginx -s reload`
 
 ### ReDoc no carga (CDN bloqueado)
 El proyecto usa `unpkg.com` en lugar de `jsdelivr` para evitar bloqueos de tracking prevention.

@@ -30,21 +30,28 @@ Esta guía incluye:
 ## 🐳 Instalación con Docker (Recomendado)
 
 ```bash
-# Usar imagen de Docker Hub
+# DESARROLLO - Puerto 8000 local
 docker run -d \
   --name mcn_backend \
   -p 8000:8000 \
   -e DB_USER=tu_usuario \
   -e DB_PASSWORD=tu_password \
-  -e DB_NAME=lexascl_mga \
-  -e DB_HOST=179.27.210.204 \
-  -e DB_PORT=3306 \
-  -e SECRET_KEY=tu-secret-key \
   mmoyac/mcn_aprobaciones_backend:latest
 
-# O usar Docker Compose
-docker-compose up -d
+# PRODUCCIÓN - Puerto 8001 (8000 ocupado en VPS)
+docker run -d \
+  --name mcn_backend \
+  -p 8001:8000 \
+  -e DB_USER=tu_usuario \
+  -e DB_PASSWORD=tu_password \
+  mmoyac/mcn_aprobaciones_backend:latest
+
+# Docker Compose (usa archivo correcto según entorno)
+docker-compose up -d                    # Desarrollo
+docker-compose -f docker-compose.prod.yml up -d  # Producción
 ```
+
+⚠️ **IMPORTANTE**: En producción SIEMPRE usar puerto 8001 (el 8000 está ocupado por Portainer)
 
 **📖 Documentación completa:** [docs/DOCKER.md](docs/DOCKER.md)
 
@@ -72,7 +79,20 @@ copy .env.example .env  # Windows
 uvicorn app.main:app --reload
 ```
 
-**🔗 La API estará disponible en:** http://localhost:8000
+## 🔌 Configuración de Puertos
+
+| Entorno | Puerto | URL | Docker Compose |
+|---------|--------|-----|----------------|
+| **Desarrollo** | `8000` | http://localhost:8000 | `docker-compose.yml` |
+| **Producción** | `8001` | https://api.lexastech.cl | `docker-compose.prod.yml` |
+
+⚠️ **CRÍTICO**: En el VPS de producción el puerto 8000 está ocupado por Portainer. SIEMPRE usar puerto 8001.
+
+**🔗 URLs disponibles:**
+- **Desarrollo:** http://localhost:8000
+- **Producción:** https://api.lexastech.cl
+- **Documentación:** /docs (Swagger UI)
+- **Health Check:** /health
 
 **📖 Para instrucciones detalladas, ver [CONTRIBUTING.md](CONTRIBUTING.md)**
 
