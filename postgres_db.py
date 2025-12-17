@@ -19,28 +19,22 @@ POSTGRES_CONFIG = {
     'database': os.getenv('POSTGRES_DB', 'lexascl_gontec')
 }
 
-# SQL para crear tablas
-CREATE_DOCUMENTS_TABLE = """
-CREATE TABLE IF NOT EXISTS documents (
+# SQL para crear tablas (coincide con modelo Python documentos_pdf)
+CREATE_DOCUMENTOS_TABLE = """
+CREATE TABLE IF NOT EXISTS documentos_pdf (
     id SERIAL PRIMARY KEY,
-    loc_cod INTEGER NOT NULL,
     numero INTEGER NOT NULL,
     tipo INTEGER NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    content_type VARCHAR(100),
-    file_data BYTEA NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Índices para búsqueda eficiente
-    UNIQUE(loc_cod, numero, tipo)
+    pdf BYTEA NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(numero, tipo)
 );
 """
 
 CREATE_INDEXES = """
-CREATE INDEX IF NOT EXISTS idx_documents_loc_numero ON documents(loc_cod, numero);
-CREATE INDEX IF NOT EXISTS idx_documents_tipo ON documents(tipo);
-CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
+CREATE INDEX IF NOT EXISTS idx_documentos_pdf_numero_tipo ON documentos_pdf(numero, tipo);
+CREATE INDEX IF NOT EXISTS idx_documentos_pdf_tipo ON documentos_pdf(tipo);
+CREATE INDEX IF NOT EXISTS idx_documentos_pdf_fecha ON documentos_pdf(fecha_creacion);
 """
 
 async def create_tables():
@@ -58,10 +52,10 @@ async def create_tables():
         
         print("✅ Conexión establecida")
         
-        # Crear tabla documents
-        print("📋 Creando tabla 'documents'...")
-        await conn.execute(CREATE_DOCUMENTS_TABLE)
-        print("✅ Tabla 'documents' creada")
+        # Crear tabla documentos_pdf
+        print("📋 Creando tabla 'documentos_pdf'...")
+        await conn.execute(CREATE_DOCUMENTOS_TABLE)
+        print("✅ Tabla 'documentos_pdf' creada")
         
         # Crear índices
         print("🔍 Creando índices...")
@@ -70,18 +64,18 @@ async def create_tables():
         
         # Verificar tabla creada
         result = await conn.fetchval(
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'documents'"
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'documentos_pdf'"
         )
         
         if result > 0:
             print("✅ Migración completada exitosamente")
             
             # Mostrar estadísticas
-            count = await conn.fetchval("SELECT COUNT(*) FROM documents")
-            print(f"📊 Documentos existentes: {count}")
+            count = await conn.fetchval("SELECT COUNT(*) FROM documentos_pdf")
+            print(f"📊 Documentos PDF existentes: {count}")
             
         else:
-            print("❌ Error: Tabla 'documents' no fue creada")
+            print("❌ Error: Tabla 'documentos_pdf' no fue creada")
             sys.exit(1)
             
         await conn.close()
