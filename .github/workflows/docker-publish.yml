@@ -98,16 +98,23 @@ jobs:
             # Descargar última imagen SIEMPRE
             echo "📦 Descargando imagen desde Docker Hub (FORZADO)..."
             docker pull mmoyac/mcn_aprobaciones_backend:latest
-            docker-compose pull --ignore-pull-failures
+            docker compose pull --ignore-pull-failures
             
             # Detener y eliminar contenedor anterior COMPLETAMENTE
             echo "🛑 Deteniendo servicios anteriores..."
-            docker-compose down --volumes --remove-orphans
+            docker compose down --volumes --remove-orphans
+            
+            # Eliminar contenedor específico del backend si existe
+            echo "🗑️ Eliminando contenedor backend anterior..."
+            docker rm -f mcn_backend 2>/dev/null || true
+            
+            # Limpiar sistema Docker
             docker system prune -f
             
-            # Iniciar servicios con docker-compose (forzar recreación TOTAL)
-            echo "▶️ Iniciando servicios con docker-compose..."
-            docker-compose up -d --force-recreate --build --no-cache
+            # Iniciar servicios con docker compose v2 (forzar recreación TOTAL)
+            echo "▶️ Iniciando servicios con docker compose..."
+            docker compose up -d --force-recreate --no-deps backend
+            docker compose up -d postgres
             
             # Esperar a que los contenedores estén listos
             echo "⏳ Esperando que PostgreSQL esté listo..."
@@ -128,7 +135,7 @@ jobs:
               docker ps | grep mcn_backend
             else
               echo "❌ Error: El contenedor no está corriendo"
-              docker-compose logs backend
+              docker compose logs backend
               exit 1
             fi
             
