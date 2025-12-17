@@ -137,41 +137,19 @@ jobs:
             # Ejecutar migración Python directamente
             echo "🐍 Ejecutando migración Python..."
             python3 postgres_db.py || {
-              echo "📦 Ejecutando migración dentro del contenedor backend..."
-              docker exec mcn_backend python -c "
-import asyncio
-import asyncpg
-import os
-
-async def migrate():
-    conn = await asyncpg.connect(
-        host='mcn_postgres', port=5432,
-        user=os.getenv('POSTGRES_USER', 'lexasdulce'),
-        password=os.getenv('POSTGRES_PASSWORD', 'Lexas1234'),
-        database=os.getenv('POSTGRES_DB', 'lexascl_gontec')
-    )
-    await conn.execute('''
-        CREATE TABLE IF NOT EXISTS documents (
-            id SERIAL PRIMARY KEY,
-            loc_cod INTEGER NOT NULL,
-            numero INTEGER NOT NULL,
-            tipo INTEGER NOT NULL,
-            filename VARCHAR(255) NOT NULL,
-            content_type VARCHAR(100),
-            file_data BYTEA NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(loc_cod, numero, tipo)
-        );
-        CREATE INDEX IF NOT EXISTS idx_documents_loc_numero ON documents(loc_cod, numero);
-        CREATE INDEX IF NOT EXISTS idx_documents_tipo ON documents(tipo);
-    ''')
-    count = await conn.fetchval('SELECT COUNT(*) FROM documents')
-    print(f'✅ Tabla creada. Documentos: {count}')
-    await conn.close()
-
-asyncio.run(migrate())
-"
+              echo "📦 Fallback: Ejecutando migración SQL directa..."
+              docker exec mcn_postgres psql -U lexasdulce -d lexascl_gontec -c "
+                CREATE TABLE IF NOT EXISTS documentos_pdf (
+                    id SERIAL PRIMARY KEY,
+                    numero INTEGER NOT NULL,
+                    tipo INTEGER NOT NULL,
+                    pdf BYTEA NOT NULL,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(numero, tipo)
+                );
+                CREATE INDEX IF NOT EXISTS idx_documentos_pdf_numero_tipo ON documentos_pdf(numero, tipo);
+                CREATE INDEX IF NOT EXISTS idx_documentos_pdf_tipo ON documentos_pdf(tipo);
+              "
             }
             
             # Esperar a que el backend esté completamente listo
