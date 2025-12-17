@@ -65,7 +65,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "docker-compose.prod.yml,nginx,.env.production,migrate.sh"
+          source: "docker-compose.prod.yml,nginx,.env.production,migrate.sh,postgres_db.py"
           target: "/root/docker/mcn/"
           strip_components: 0
 
@@ -129,8 +129,50 @@ jobs:
             
             # Ejecutar migraciones automáticas
             echo "🗃️ Ejecutando migraciones de PostgreSQL..."
-            chmod +x migrate.sh
-            ./migrate.sh
+            chmod +x migrate.sh postgres_db.py
+            
+            # Instalar asyncpg si no existe en el host
+            pip3 install asyncpg 2>/dev/null || echo "asyncpg ya instalado o usando contenedor"
+            
+            # Ejecutar migración Python directamente
+            echo "🐍 Ejecutando migración Python..."
+            python3 postgres_db.py || {
+              echo "📦 Ejecutando migración dentro del contenedor backend..."
+              docker exec mcn_backend python -c "
+import asyncio
+import asyncpg
+import os
+
+async def migrate():
+    conn = await asyncpg.connect(
+        host='mcn_postgres', port=5432,
+        user=os.getenv('POSTGRES_USER', 'lexasdulce'),
+        password=os.getenv('POSTGRES_PASSWORD', 'Lexas1234'),
+        database=os.getenv('POSTGRES_DB', 'lexascl_gontec')
+    )
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS documents (
+            id SERIAL PRIMARY KEY,
+            loc_cod INTEGER NOT NULL,
+            numero INTEGER NOT NULL,
+            tipo INTEGER NOT NULL,
+            filename VARCHAR(255) NOT NULL,
+            content_type VARCHAR(100),
+            file_data BYTEA NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(loc_cod, numero, tipo)
+        );
+        CREATE INDEX IF NOT EXISTS idx_documents_loc_numero ON documents(loc_cod, numero);
+        CREATE INDEX IF NOT EXISTS idx_documents_tipo ON documents(tipo);
+    ''')
+    count = await conn.fetchval('SELECT COUNT(*) FROM documents')
+    print(f'✅ Tabla creada. Documentos: {count}')
+    await conn.close()
+
+asyncio.run(migrate())
+"
+            }
             
             # Esperar a que el backend esté completamente listo
             echo "⏳ Esperando que el backend esté listo..."
