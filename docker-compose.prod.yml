@@ -9,6 +9,8 @@ services:
     image: mmoyac/mcn_aprobaciones_backend:latest
     container_name: mcn_backend
     restart: always
+    ports:
+      - "8001:8000"
     env_file:
       - .env
     volumes:
