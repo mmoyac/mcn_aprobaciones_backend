@@ -59,7 +59,7 @@ print(f"Aprobados: {indicadores['aprobados']}")
 
 ### GET /presupuestos/pendientes
 
-Lista los presupuestos pendientes de aprobación final.
+Lista los presupuestos pendientes de aprobación final con validación automática de PDF asociado.
 
 #### Parámetros de Query
 
@@ -72,6 +72,7 @@ Lista los presupuestos pendientes de aprobación final.
 
 - `Pre_vbLib = 1` - Presupuesto liberado
 - `pre_vbgg = 0` - Pendiente de aprobación de gerencia
+- **Enriquecimiento PDF**: Cada registro incluye validación automática de PDF asociado
 
 #### Respuesta Exitosa (200)
 
@@ -94,7 +95,8 @@ Lista los presupuestos pendientes de aprobación final.
     "pre_vbggUsu": "",
     "pre_vbggDt": null,
     "pre_trnFec": "2025-12-01",
-    "pre_trnusu": "VENDEDOR1"
+    "pre_trnusu": "VENDEDOR1",
+    "tienepdf": 1
   }
 ]
 ```
@@ -121,7 +123,8 @@ response = requests.get(
 presupuestos = response.json()
 
 for presup in presupuestos:
-    print(f"Presupuesto #{presup['pre_nro']} - Monto: ${presup['Pre_Neto']:,}")
+    pdf_status = "Con PDF" if presup['tienepdf'] == 1 else "Sin PDF"
+    print(f"Presupuesto #{presup['pre_nro']} - Monto: ${presup['Pre_Neto']:,} - {pdf_status}")
 ```
 
 ---
@@ -210,6 +213,7 @@ print(f"Total aprobados obtenidos: {len(presupuestos)}")
 | `pre_vbggDt` | date | Fecha VB gerencia |
 | `pre_trnFec` | date | Fecha de transacción |
 | `pre_trnusu` | string | Usuario de transacción |
+| `tienepdf` | integer | Indica si tiene PDF asociado (1=sí, 0=no) **[Solo en /pendientes]** |
 
 ---
 
@@ -236,6 +240,7 @@ El sistema maneja tres estados principales para un presupuesto:
 2. **Pendiente**: Liberado pero esperando aprobación de gerencia
    - `Pre_vbLib = 1` ✅
    - `pre_vbgg = 0` ⏳
+   - **Validación PDF automática**: Campo `tienepdf` indica presencia de documento
 
 3. **Aprobado**: Aprobación final de gerencia
    - `pre_vbgg = 1` ✅
@@ -260,6 +265,36 @@ Estas interfaces permiten probar los endpoints directamente desde el navegador.
 
 ---
 
+## � Integración PDF
+
+### Validación Automática de PDFs
+
+El endpoint `/presupuestos/pendientes` incluye validación automática de PDFs asociados:
+
+- **Campo `tienepdf`**: Valor calculado dinámicamente (1=existe PDF, 0=no existe)
+- **Método de validación**: HTTP interno al endpoint `/api/v1/documentos-pdf/get`
+- **Timeout**: 5 segundos para evitar bloqueos
+- **Manejo de errores**: En caso de fallo, `tienepdf=0` (asume sin PDF)
+
+#### Implementación Técnica
+
+```python
+# Ejemplo de validación interna
+async def _verificar_pdf_existe(pre_nro: int) -> int:
+    try:
+        response = await httpx.get(
+            f"http://127.0.0.1:8000/api/v1/documentos-pdf/get",
+            params={"pre_nro": pre_nro},
+            headers={"x-api-key": "supersecreta123"},
+            timeout=5.0
+        )
+        return 1 if response.status_code == 200 else 0
+    except:
+        return 0  # Asume sin PDF en caso de error
+```
+
+---
+
 ## 📝 Notas Adicionales
 
 - Los listados están ordenados por fecha descendente
@@ -267,3 +302,4 @@ Estas interfaces permiten probar los endpoints directamente desde el navegador.
 - Se recomienda usar paginación para grandes volúmenes de datos
 - Todos los endpoints retornan JSON
 - Los campos de fecha siguen el formato ISO 8601 (YYYY-MM-DD)
+- **TDD**: Funcionalidad desarrollada con Test-Driven Development (8 tests)

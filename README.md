@@ -107,9 +107,40 @@ mcn_aprobaciones_backend/
 
 ## 🧪 Tests
 
+### Tests Básicos (sin persistencia)
 ```bash
-pytest
+# Ejecutar tests que no requieren base de datos
+pytest tests/test_basic.py
 ```
+
+### Tests con Base de Datos (requieren contenedores)
+**⚠️ IMPORTANTE**: Los tests que utilizan PostgreSQL/MySQL requieren contenedores Docker ejecutándose.
+
+```bash
+# 1. Iniciar contenedores
+docker-compose up -d --build --force-recreate
+
+# 2. Verificar que PostgreSQL esté disponible
+docker ps | grep postgres
+
+# 3. Ejecutar tests con persistencia
+pytest tests/api/test_documento_pdf.py
+pytest tests/api/test_presupuestos.py -v
+
+# 4. Ejecutar todos los tests
+pytest
+
+# Con cobertura
+pytest --cov=app --cov-report=html
+```
+
+### ¿Por qué necesito contenedores para tests?
+Los tests de endpoints que usan PostgreSQL (`/documentos-pdf/*`) y MySQL (otros endpoints) necesitan conectividad real a las bases de datos para validar:
+- Creación y actualización de registros
+- Consultas y filtros
+- Integridad de datos
+- Manejo de errores de persistencia
+- **Integración PDF**: Tests de presupuestos validan automáticamente si existe PDF asociado via HTTP interno
 
 ## 📝 Documentación
 

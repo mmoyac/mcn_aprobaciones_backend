@@ -4,9 +4,14 @@ Servicio de lógica de negocio para presupuestos
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import datetime
+import pytz
+import os
+from typing import List, Dict, Any
 from app.models.presupuesto import Presupuesto
 from app.models.usuario import Usuario
+from app.models.documento_pdf import DocumentoPDF
 from app.schemas.presupuesto import PresupuestoIndicadores
+from app.db.session_postgres import get_postgres_db_sync
 
 
 class PresupuestoService:
@@ -55,13 +60,48 @@ class PresupuestoService:
         )
     
     @staticmethod
+    def _verificar_pdf_existe(numero: int) -> int:
+        """
+        Consulta directamente en PostgreSQL si existe PDF para el presupuesto.
+        Comunicación interna sin HTTP para mejor rendimiento y confiabilidad.
+        
+        Args:
+            numero: Número de presupuesto
+            
+        Returns:
+            int: 1 si existe PDF, 0 si no existe o hay error
+        """
+        db_postgres = None
+        try:
+            # Obtener sesión de PostgreSQL
+            db_postgres = get_postgres_db_sync()
+            
+            # Consultar directamente en la tabla documentos_pdf
+            documento = db_postgres.query(DocumentoPDF).filter_by(
+                tipo=1, 
+                numero=numero
+            ).first()
+            
+            # Verificar si existe y tiene contenido PDF
+            result = 1 if (documento and documento.pdf) else 0
+            return result
+            
+        except Exception as e:
+            # En caso de error de BD, asumir que no hay PDF
+            return 0
+        finally:
+            # Cerrar sesión de PostgreSQL si existe
+            if db_postgres:
+                db_postgres.close()
+
+    @staticmethod
     def obtener_presupuestos_pendientes(
         db: Session,
         skip: int = 0,
         limit: int = 100
     ):
         """
-        Obtiene listado de presupuestos pendientes de aprobación.
+        Obtiene listado de presupuestos pendientes de aprobación con indicador de PDF.
         
         Args:
             db: Sesión de base de datos
@@ -69,7 +109,7 @@ class PresupuestoService:
             limit: Límite de registros a retornar
             
         Returns:
-            List[Presupuesto]: Lista de presupuestos pendientes
+            List[Presupuesto]: Lista de presupuestos pendientes (se agregará tienepdf en el endpoint)
         """
         return db.query(Presupuesto).filter(
             and_(
@@ -153,8 +193,9 @@ class PresupuestoService:
         if not presupuesto:
             raise ValueError(f"Presupuesto no encontrado: Loc_cod={loc_cod}, pre_nro={pre_nro}")
         
-        # Obtener fecha y hora actual
-        ahora = datetime.now()
+        # Obtener fecha y hora actual en zona horaria de Chile
+        chile_tz = pytz.timezone('America/Santiago')
+        ahora = datetime.now(chile_tz)
         fecha_aprobacion = ahora.date()
         hora_aprobacion = ahora.strftime("%H:%M:%S")
         

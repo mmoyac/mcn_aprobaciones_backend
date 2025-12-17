@@ -140,11 +140,40 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 
 ## 🧪 Ejecutar Tests
 
+### ⚠️ PREREQUISITOS para Tests con Base de Datos
+
+Los tests que utilizan la capa de persistencia **REQUIEREN** contenedores Docker ejecutándose:
+
 ```bash
-# Todos los tests
+# Iniciar contenedores antes de ejecutar tests
+docker-compose up -d
+
+# Verificar que estén corriendo
+docker ps
+```
+
+### Tipos de Tests
+
+**Tests Básicos** (sin base de datos):
+```bash
+# Tests unitarios sin persistencia
+pytest tests/test_basic.py -v
+```
+
+**Tests de Integración** (con base de datos):
+```bash
+# Tests que requieren PostgreSQL y MySQL
+pytest tests/api/test_documento_pdf.py -v
+pytest tests/api/test_presupuestos.py -v
+pytest tests/api/test_usuarios.py -v
+```
+
+**Todos los Tests**:
+```bash
+# Ejecutar todos (requiere contenedores)
 pytest
 
-# Tests con cobertura
+# Con cobertura
 pytest --cov=app tests/
 
 # Tests específicos
@@ -153,6 +182,9 @@ pytest tests/api/test_presupuestos.py
 # Modo verbose
 pytest -v
 ```
+
+### 📝 Nota Importante
+Los endpoints `/documentos-pdf/*` usan PostgreSQL y otros endpoints usan MySQL. Ambas bases de datos deben estar disponibles en contenedores Docker para que los tests pasen correctamente.
 
 ---
 

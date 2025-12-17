@@ -66,6 +66,7 @@ class PresupuestoDetalle(PresupuestoBase):
     pre_vbggDt: Optional[date] = Field(None, description="Fecha VB Gerencia")
     pre_trnFec: date = Field(..., description="Fecha de transacción")
     pre_trnusu: str = Field(..., description="Usuario de transacción")
+    tienepdf: Optional[int] = Field(None, description="Indica si tiene PDF asociado (0=No, 1=Sí)", ge=0, le=1)
     
     class Config:
         from_attributes = True

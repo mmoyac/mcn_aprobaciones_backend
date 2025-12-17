@@ -23,36 +23,45 @@ def obtener_indicadores(
     """
     Obtener indicadores del dashboard para órdenes de compra.
     """
-    return OrdenCompraService.obtener_indicadores(db, current_user)
+    service = OrdenCompraService()
+    return service.obtener_indicadores(db, current_user)
 
 @router.get("/pendientes", response_model=List[OrdenCompraDetalle])
-def obtener_pendientes(
-    skip: int = 0,
-    limit: int = 100,
+async def obtener_pendientes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
-    Obtener listado de órdenes de compra pendientes de aprobación.
+    Obtener órdenes pendientes con validación PDF.
+    Filtro: ocp_A1_Ap=1 AND ocp_A2_Ap=0 (liberadas pero no aprobadas)
     """
-    pendientes = OrdenCompraService.obtener_pendientes(db, skip=skip, limit=limit)
-    return pendientes
+    service = OrdenCompraService()
+    return await service.obtener_pendientes_con_pdf(db, skip=skip, limit=limit)
 
-@router.get("/aprobados", response_model=List[OrdenCompraDetalle])
-def obtener_aprobados(
-    fecha_desde: date,
-    fecha_hasta: date,
+@router.get("/aprobadas", response_model=List[OrdenCompraDetalle])
+async def obtener_aprobadas(
+    usuario: str = Query(None, description="Usuario que aprobó (opcional)"),
+    fecha_desde: date = Query(None, description="Fecha desde (opcional)"),
+    fecha_hasta: date = Query(None, description="Fecha hasta (opcional)"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
-    Obtener listado de órdenes aprobadas por el usuario actual en un rango de fechas.
+    Obtener órdenes aprobadas con validación PDF.
+    Si no se especifica usuario/fechas: solo las aprobadas hoy
     """
-    return OrdenCompraService.obtener_aprobados(
+    service = OrdenCompraService()
+    return await service.obtener_aprobadas_con_pdf(
         db, 
-        current_user, 
+        usuario or None, 
         fecha_desde, 
-        fecha_hasta
+        fecha_hasta,
+        skip=skip,
+        limit=limit
     )
 
 @router.post("/aprobar", response_model=OrdenCompraAprobadoResponse)
@@ -62,9 +71,10 @@ def aprobar_orden(
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
-    Aprobar una orden de compra.
+    Aprobar una orden de compra (nivel 2 - aprobación final).
     """
-    orden = OrdenCompraService.aprobar_orden(
+    service = OrdenCompraService()
+    orden = service.aprobar_orden(
         db, 
         orden_in.ocp_nro, 
         orden_in.Loc_cod, 
@@ -80,7 +90,7 @@ def aprobar_orden(
     return OrdenCompraAprobadoResponse(
         message="Orden aprobada exitosamente",
         ocp_nro=orden.ocp_nro,
-        new_status="aprobado"
+        new_status="aprobada"
     )
 
 @router.post("/desaprobar", response_model=OrdenCompraAprobadoResponse)
@@ -90,9 +100,10 @@ def desaprobar_orden(
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
-    Deshacer aprobación de una orden de compra.
+    Deshacer aprobación de una orden de compra (nivel 2).
     """
-    orden = OrdenCompraService.desaprobar_orden(
+    service = OrdenCompraService()
+    orden = service.desaprobar_orden(
         db, 
         orden_in.ocp_nro, 
         orden_in.Loc_cod

@@ -65,7 +65,7 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "docker-compose.prod.yml,nginx,.env.production"
+          source: "docker-compose.prod.yml,nginx,.env.production,migrate.sh"
           target: "/root/docker/mcn/"
           strip_components: 0
 
@@ -106,8 +106,17 @@ jobs:
             echo "▶️ Iniciando servicios con docker-compose..."
             docker-compose up -d --force-recreate
             
-            # Esperar a que el contenedor esté listo
-            echo "⏳ Esperando que el servicio esté listo..."
+            # Esperar a que los contenedores estén listos
+            echo "⏳ Esperando que PostgreSQL esté listo..."
+            sleep 15
+            
+            # Ejecutar migraciones automáticas
+            echo "🗃️ Ejecutando migraciones de PostgreSQL..."
+            chmod +x migrate.sh
+            ./migrate.sh
+            
+            # Esperar a que el backend esté completamente listo
+            echo "⏳ Esperando que el backend esté listo..."
             sleep 10
             
             # Verificar que el contenedor está corriendo

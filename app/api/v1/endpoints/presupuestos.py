@@ -4,6 +4,7 @@ Endpoints REST API para gestión de presupuestos
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+import asyncio
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, get_current_user_id
@@ -107,7 +108,48 @@ async def listar_presupuestos_pendientes(
         presupuestos = PresupuestoService.obtener_presupuestos_pendientes(
             db, skip=skip, limit=limit
         )
-        return presupuestos
+        
+        # Enriquecer con información de PDFs
+        presupuestos_enriquecidos = []
+        for presupuesto in presupuestos:
+            # Verificar si tiene PDF asociado
+            tienepdf = PresupuestoService._verificar_pdf_existe(
+                presupuesto.pre_nro
+            )
+            
+            # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
+            presupuesto_dict = {
+                # Campos de PresupuestoBase
+                "Loc_cod": presupuesto.Loc_cod,
+                "pre_nro": presupuesto.pre_nro,
+                "pre_est": presupuesto.pre_est,
+                "pre_fec": presupuesto.pre_fec,
+                "pre_rut": presupuesto.pre_rut,
+                "cliente_nombre": presupuesto.cliente_nombre,
+                "pre_VenCod": presupuesto.pre_VenCod,
+                "Pre_Neto": presupuesto.Pre_Neto,
+                "Pre_vbLib": presupuesto.Pre_vbLib,
+                "pre_vbgg": presupuesto.pre_vbgg,
+                
+                # Campos adicionales de PresupuestoDetalle
+                "pre_gl1": presupuesto.pre_gl1,
+                "pre_fecAdj": presupuesto.pre_fecAdj,
+                "pre_VbLibUsu": presupuesto.Pre_VbLibUsu,
+                "Pre_VBLibDt": presupuesto.Pre_VBLibDt,
+                "pre_vbggUsu": presupuesto.pre_vbggUsu,
+                "pre_vbggDt": presupuesto.pre_vbggDt,
+                "pre_trnFec": presupuesto.pre_trnFec,
+                "pre_trnusu": presupuesto.pre_trnusu,
+                
+                # Campo nuevo con PDF
+                "tienepdf": tienepdf
+            }
+            
+            # Crear objeto PresupuestoDetalle con todos los campos
+            presupuesto_detalle = PresupuestoDetalle(**presupuesto_dict)
+            presupuestos_enriquecidos.append(presupuesto_detalle)
+        
+        return presupuestos_enriquecidos
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -172,7 +214,48 @@ async def listar_presupuestos_aprobados(
             db, usuario=usuario, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
             skip=skip, limit=limit
         )
-        return presupuestos
+        
+        # Enriquecer con información de PDFs
+        presupuestos_enriquecidos = []
+        for presupuesto in presupuestos:
+            # Verificar si tiene PDF asociado
+            tienepdf = PresupuestoService._verificar_pdf_existe(
+                presupuesto.pre_nro
+            )
+
+            # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
+            presupuesto_dict = {
+                # Campos de PresupuestoBase
+                "Loc_cod": presupuesto.Loc_cod,
+                "pre_nro": presupuesto.pre_nro,
+                "pre_est": presupuesto.pre_est,
+                "pre_fec": presupuesto.pre_fec,
+                "pre_rut": presupuesto.pre_rut,
+                "cliente_nombre": presupuesto.cliente_nombre,
+                "pre_VenCod": presupuesto.pre_VenCod,
+                "Pre_Neto": presupuesto.Pre_Neto,
+                "Pre_vbLib": presupuesto.Pre_vbLib,
+                "pre_vbgg": presupuesto.pre_vbgg,
+                
+                # Campos adicionales de PresupuestoDetalle
+                "pre_gl1": presupuesto.pre_gl1,
+                "pre_fecAdj": presupuesto.pre_fecAdj,
+                "pre_VbLibUsu": presupuesto.Pre_VbLibUsu,
+                "Pre_VBLibDt": presupuesto.Pre_VBLibDt,
+                "pre_vbggUsu": presupuesto.pre_vbggUsu,
+                "pre_vbggDt": presupuesto.pre_vbggDt,
+                "pre_trnFec": presupuesto.pre_trnFec,
+                "pre_trnusu": presupuesto.pre_trnusu,
+                
+                # Campo nuevo con PDF
+                "tienepdf": tienepdf
+            }
+
+            # Crear objeto PresupuestoDetalle con todos los campos
+            presupuesto_detalle = PresupuestoDetalle(**presupuesto_dict)
+            presupuestos_enriquecidos.append(presupuesto_detalle)
+
+        return presupuestos_enriquecidos
     except Exception as e:
         raise HTTPException(
             status_code=500,

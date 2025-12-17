@@ -1,6 +1,6 @@
 # =====================================
 # Docker Compose - MCN Aprobaciones Backend
-# Solo backend, el proxy/SSL lo maneja /root/docker/nginx-proxy
+# Backend + PostgreSQL para PDFs, proxy/SSL lo maneja /root/docker/nginx-proxy
 # =====================================
 version: '3.8'
 
@@ -13,6 +13,9 @@ services:
       - .env
     volumes:
       - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - general-net
     healthcheck:
@@ -21,6 +24,29 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcn_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lexasdulce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Lexas1234}
+      POSTGRES_DB: ${POSTGRES_DB:-lexascl_gontec}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - general-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lexasdulce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
   general-net:

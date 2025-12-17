@@ -7,6 +7,8 @@ from fastapi.openapi.docs import get_redoc_html
 
 from app.core.config import get_settings
 from app.api.v1.router import api_router
+import os
+from fastapi import Request, HTTPException, status
 
 settings = get_settings()
 
@@ -28,6 +30,21 @@ app.add_middleware(
 )
 
 # Incluir routers de API v1
+
+
+# Middleware para validar API key en endpoints de documentos PDF
+from fastapi.responses import JSONResponse
+import sys
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    # Solo proteger endpoints de documentos PDF (PostgreSQL)
+    if request.url.path.startswith(f"{settings.API_V1_PREFIX}/documentos-pdf"):
+        api_key = os.getenv("API_KEY")
+        header_key = request.headers.get("x-api-key")
+        if not api_key or header_key != api_key:
+            return JSONResponse(status_code=401, content={"detail": f"Invalid or missing API Key. Path: {request.url.path}"})
+    return await call_next(request)
+
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 

@@ -174,7 +174,9 @@ Las migraciones se ejecutan automáticamente al iniciar el contenedor Docker (si
 **Todos los endpoints requieren autenticación JWT en header:** `Authorization: Bearer <token>`
 
 - **GET** `/indicadores` - Totales de presupuestos pendientes y aprobados
-- **GET** `/pendientes` - Lista presupuestos pendientes (Pre_vbLib=1 AND pre_vbgg=0)
+- **GET** `/pendientes` - Lista presupuestos pendientes (Pre_vbLib=1 AND pre_vbgg=0) **con campo `tienepdf`**
+  - Incluye validación automática de existencia de PDF asociado
+  - Campo `tienepdf`: 1 si existe PDF, 0 si no existe
 - **GET** `/aprobados?usuario={user}&fecha_desde={date}&fecha_hasta={date}` - Presupuestos aprobados filtrados por usuario y rango de fechas
 - **POST** `/aprobar` - Aprueba presupuesto (usuario se obtiene del token JWT)
   - Request: `{"Loc_cod": 1, "pre_nro": 12345}`
@@ -183,19 +185,45 @@ Las migraciones se ejecutan automáticamente al iniciar el contenedor Docker (si
 
 **Paginación:** Todos los endpoints de lista soportan `skip` y `limit` (max 1000)
 
+**Integración PDF:** El endpoint `/pendientes` consulta automáticamente el servicio de documentos PDF para determinar si cada presupuesto tiene un PDF asociado, usando llamadas internas al endpoint `/api/v1/documentos-pdf/get`.
+
 ---
 
 ## 5. 🧪 Testing
 
+**⚠️ IMPORTANTE: Los tests requieren contenedores Docker corriendo**
+
 ```bash
-# Ejecutar todos los tests
+# 1. Iniciar contenedores (OBLIGATORIO)
+docker-compose up -d --build --force-recreate
+
+# 2. Verificar que estén corriendo
+docker ps
+
+# 3. Ejecutar tests
 pytest
 
 # Con cobertura
 pytest --cov=app --cov-report=html
 
-# Test específico
-pytest tests/api/test_presupuestos.py
+# Test específico (incluye integración PDF)
+pytest tests/api/test_presupuestos.py -v
+```
+
+**Tests de Integración PDF:**
+Los tests del endpoint `/presupuestos/pendientes` validan la integración completa:
+- Autenticación JWT
+- Consulta a base de datos MySQL
+- Llamadas HTTP internas para validación de PDFs
+- Campo `tienepdf` calculado dinámicamente
+- Manejo de errores y timeouts
+
+**Forzar Rebuild de Contenedores:**
+```bash
+# Rebuild completo sin cache (recomendado tras cambios)
+docker-compose down --volumes --remove-orphans
+docker-compose build --no-cache
+docker-compose up -d
 ```
 
 ---
@@ -236,7 +264,23 @@ ruff check --fix app/
 
 ---
 
+
 ## 8. 🔐 Seguridad
+
+- **Autenticación por API Key (documentos PDF):** Todos los endpoints bajo `/api/v1/documentos-pdf/` requieren el header `x-api-key` con el valor configurado en la variable de entorno `API_KEY`.
+    - Ejemplo de uso:
+      ```http
+      POST /api/v1/documentos-pdf/upsert HTTP/1.1
+      Host: localhost:8000
+      x-api-key: supersecreta123
+      Content-Type: multipart/form-data
+      ...
+      ```
+
+    - Solo los endpoints bajo `/api/v1/documentos-pdf/` (que usan PostgreSQL) requieren el header `x-api-key`.
+    - El resto de los endpoints (usuarios, presupuestos, etc. - que usan MySQL) mantienen su autenticación JWT habitual.
+    - Si la API key es incorrecta o falta, el endpoint responde 401 Unauthorized.
+    - Cambia la clave en `.env` (`API_KEY`) para rotar el acceso sin modificar el código.
 
 - **Autenticación JWT:** Todos los endpoints (excepto `/health` y `/auth/login`) requieren token JWT
 - **Token Expiration:** 30 minutos (configurable en `.env` con `ACCESS_TOKEN_EXPIRE_MINUTES`)
@@ -250,7 +294,42 @@ ruff check --fix app/
 
 ---
 
-## 9. 🐛 Troubleshooting Común
+## 6. 🧪 Testing y Base de Datos
+
+### ⚠️ IMPORTANTE: Tests con Persistencia
+
+**Los tests que utilizan la capa de persistencia DEBEN ejecutarse con contenedores Docker:**
+
+```bash
+# 1. OBLIGATORIO: Iniciar contenedores
+docker-compose up -d
+
+# 2. Verificar que estén corriendo
+docker ps
+
+# 3. Ejecutar tests con base de datos
+pytest tests/api/test_documento_pdf.py  # PostgreSQL
+pytest tests/api/test_presupuestos.py   # MySQL
+pytest tests/api/test_usuarios.py       # MySQL
+```
+
+### ¿Por qué Contenedores para Tests?
+
+- **PostgreSQL**: Endpoints `/documentos-pdf/*` necesitan host `postgres` (Docker) o `localhost:5432`
+- **MySQL**: Otros endpoints necesitan conexión a base remota configurada
+- **Configuración**: `conftest.py` configura `POSTGRES_HOST=localhost` para tests desde host
+- **Integridad**: Tests validan persistencia real, no mocks
+
+### Configuración de Test Environment
+
+El archivo `conftest.py` configura automáticamente:
+- `POSTGRES_HOST=localhost` (permite conexión host→container)  
+- `API_KEY=supersecreta123` (autenticación para endpoints PDF)
+- Variables de conexión PostgreSQL
+
+---
+
+## 7. 🐛 Troubleshooting Común
 
 ### Puerto 8000 en uso
 ```bash

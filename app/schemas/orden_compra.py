@@ -1,11 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date
 
 # Esquema para indicadores del dashboard
 class OrdenCompraIndicadores(BaseModel):
-    pendientes_count: int
-    aprobados_hoy_count: int
+    total: int
+    pendientes: int
+    aprobadas: int
 
 # Esquema base
 class OrdenCompraBase(BaseModel):
@@ -25,11 +26,12 @@ class OrdenCompraDetalle(OrdenCompraBase):
     ocp_fee: date
     proveedor_nombre: str
     monto_total: int
+    tienepdf: Optional[int] = Field(None, description="Indica si tiene PDF asociado (0=No, 1=Sí)", ge=0, le=1)
     
     # Datos de aprobación (para la pestaña de aprobados)
-    ocp_A1_Usu: Optional[str] = None
-    ocp_A1_Dt: Optional[date] = None
-    ocp_A1_Hr: Optional[str] = None
+    ocp_A2_Usu: Optional[str] = None
+    ocp_A2_Dt: Optional[date] = None
+    ocp_A2_Hr: Optional[str] = None
 
     class Config:
         from_attributes = True

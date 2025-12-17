@@ -22,11 +22,28 @@ class OrdenCompra(Base):
     # Estados
     ocp_pdt = Column(String(1), nullable=False) # 'T' Recepcionada, 'I' Pendiente
     
-    # Aprobación 1
+    # Aprobación 1 (Liberación inicial)
     ocp_A1_Ap = Column(SmallInteger, nullable=False, default=0)
     ocp_A1_Usu = Column(String(10), nullable=False, default='')
     ocp_A1_Dt = Column(Date, nullable=False)
     ocp_A1_Hr = Column(String(8), nullable=False, default='')
+    
+    # Aprobación 2 (Aprobación final - equivalente a pre_vbgg)
+    ocp_A2_Ap = Column(SmallInteger, nullable=False, default=0)
+    ocp_A2_Usu = Column(String(10), nullable=False, default='')
+    ocp_A2_Dt = Column(Date, nullable=False)
+    ocp_A2_Hr = Column(String(8), nullable=False, default='')
+    
+    # Otros campos de aprobación
+    ocp_A3_Anu = Column(SmallInteger, nullable=False, default=0)  # Anulación
+    ocp_A3_Dt = Column(Date, nullable=False)
+    ocp_A3_Hr = Column(String(8), nullable=False, default='')
+    ocp_A3_Usu = Column(String(10), nullable=False, default='')
+    
+    ocp_A4_Ap = Column(SmallInteger, nullable=False, default=0)   # Aprobación nivel 4
+    ocp_A4_Dt = Column(Date, nullable=False)
+    ocp_A4_Hr = Column(String(8), nullable=False, default='')
+    ocp_A4_Usu = Column(String(10), nullable=False, default='')
 
     # Relaciones
     proveedor = relationship("Proveedor", lazy="joined")
