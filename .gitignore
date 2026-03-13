@@ -79,5 +79,4 @@ Thumbs.db
 htmlcov/
 .tox/
 
-# Alembic
-alembic.ini
+
