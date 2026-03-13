@@ -4,7 +4,7 @@ Revises: None
 Create Date: 2025-12-17
 """
 
-revision = '0001_create_documentos_pdf'
+revision = '0001_docs_pdf'
 down_revision = None
 branch_labels = None
 depends_on = None

@@ -9,8 +9,8 @@ Crea las tablas de multitenancy:
 - tenant_conexiones: credenciales de BD MySQL por tenant
 """
 
-revision = '0002_create_tenant_tables'
-down_revision = '0001_create_documentos_pdf'
+revision = '0002_tenant_tables'
+down_revision = '0001_docs_pdf'
 branch_labels = None
 depends_on = None
 

@@ -7,8 +7,8 @@ Agrega tenant_id FK a documentos_pdf para aislar PDFs por tenant.
 Los registros existentes se asignan al tenant con id=1 (primer tenant).
 """
 
-revision = '0003_add_tenant_id_to_documentos_pdf'
-down_revision = '0002_create_tenant_tables'
+revision = '0003_tenant_id_docs_pdf'
+down_revision = '0002_tenant_tables'
 branch_labels = None
 depends_on = None
 
