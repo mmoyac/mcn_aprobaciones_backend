@@ -7,6 +7,7 @@ from fastapi.openapi.docs import get_redoc_html
 
 from app.core.config import get_settings
 from app.api.v1.router import api_router
+from app.core.tenant_middleware import TenantMiddleware
 import os
 from fastapi import Request, HTTPException, status
 
@@ -28,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Middleware de resolución de tenant (debe ir ANTES del api_key_middleware)
+app.add_middleware(TenantMiddleware)
 
 # Incluir routers de API v1
 
@@ -64,38 +68,6 @@ async def root():
 async def health_check():
     """Endpoint de health check."""
     return {"status": "healthy", "environment": settings.APP_ENV}
-
-
-@app.get("/db-test")
-async def db_test():
-    """Endpoint temporal para probar conexión a BD."""
-    from sqlalchemy import text
-    from app.db.session import SessionLocal
-    import traceback
-    
-    try:
-        db = SessionLocal()
-        # Intentar una consulta simple
-        result = db.execute(text("SELECT 1")).scalar()
-        return {
-            "status": "success",
-            "result": result,
-            "connection_info": {
-                "host": settings.DB_HOST,
-                "user": settings.DB_USER,
-                "db": settings.DB_NAME
-            }
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "type": type(e).__name__,
-            "traceback": traceback.format_exc()
-        }
-    finally:
-        if 'db' in locals():
-            db.close()
 
 
 @app.get("/redoc", include_in_schema=False)

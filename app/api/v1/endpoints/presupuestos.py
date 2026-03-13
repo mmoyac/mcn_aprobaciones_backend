@@ -1,13 +1,12 @@
 """
 Endpoints REST API para gestión de presupuestos
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from typing import List
 import asyncio
 
-from app.db.session import get_db
-from app.core.deps import get_current_user, get_current_user_id
+from app.core.deps import get_tenant_db, get_current_user, get_current_user_id
 from app.models.usuario import Usuario
 from app.schemas.presupuesto import (
     PresupuestoIndicadores,
@@ -37,7 +36,7 @@ router = APIRouter()
     tags=["Indicadores"]
 )
 async def obtener_indicadores(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> PresupuestoIndicadores:
     """
@@ -80,7 +79,8 @@ async def obtener_indicadores(
 async def listar_presupuestos_pendientes(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    request: Request = None,
+    db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> List[PresupuestoDetalle]:
     """
@@ -108,13 +108,14 @@ async def listar_presupuestos_pendientes(
         presupuestos = PresupuestoService.obtener_presupuestos_pendientes(
             db, skip=skip, limit=limit
         )
-        
+        tenant = getattr(request.state, 'tenant', None) if request else None
+        tenant_id = tenant.id if tenant else 1
         # Enriquecer con información de PDFs
         presupuestos_enriquecidos = []
         for presupuesto in presupuestos:
             # Verificar si tiene PDF asociado
             tienepdf = PresupuestoService._verificar_pdf_existe(
-                presupuesto.pre_nro
+                presupuesto.pre_nro, tenant_id
             )
             
             # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
@@ -179,7 +180,8 @@ async def listar_presupuestos_aprobados(
     fecha_hasta: str,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    request: Request = None,
+    db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> List[PresupuestoDetalle]:
     """
@@ -214,13 +216,14 @@ async def listar_presupuestos_aprobados(
             db, usuario=usuario, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
             skip=skip, limit=limit
         )
-        
+        tenant = getattr(request.state, 'tenant', None) if request else None
+        tenant_id = tenant.id if tenant else 1
         # Enriquecer con información de PDFs
         presupuestos_enriquecidos = []
         for presupuesto in presupuestos:
             # Verificar si tiene PDF asociado
             tienepdf = PresupuestoService._verificar_pdf_existe(
-                presupuesto.pre_nro
+                presupuesto.pre_nro, tenant_id
             )
 
             # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
@@ -281,7 +284,7 @@ async def listar_presupuestos_aprobados(
 )
 async def aprobar_presupuesto(
     data: PresupuestoAprobar,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     usuario: str = Depends(get_current_user_id)
 ) -> PresupuestoAprobadoResponse:
     """
@@ -350,7 +353,7 @@ async def aprobar_presupuesto(
 )
 async def desaprobar_presupuesto(
     data: PresupuestoAprobar,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     usuario: str = Depends(get_current_user_id)
 ) -> PresupuestoAprobadoResponse:
     """

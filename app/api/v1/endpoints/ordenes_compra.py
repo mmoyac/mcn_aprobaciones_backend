@@ -1,10 +1,9 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from datetime import date
 
-from app.db.session import get_db
-from app.core.deps import get_current_user_id
+from app.core.deps import get_tenant_db, get_current_user_id
 from app.schemas.orden_compra import (
     OrdenCompraDetalle,
     OrdenCompraIndicadores,
@@ -17,7 +16,7 @@ router = APIRouter()
 
 @router.get("/indicadores", response_model=OrdenCompraIndicadores)
 def obtener_indicadores(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
@@ -30,7 +29,8 @@ def obtener_indicadores(
 async def obtener_pendientes(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db),
+    request: Request = None,
+    db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
@@ -38,7 +38,9 @@ async def obtener_pendientes(
     Filtro: ocp_A1_Ap=1 AND ocp_A2_Ap=0 (liberadas pero no aprobadas)
     """
     service = OrdenCompraService()
-    return await service.obtener_pendientes_con_pdf(db, skip=skip, limit=limit)
+    tenant = getattr(request.state, 'tenant', None) if request else None
+    tenant_id = tenant.id if tenant else 1
+    return await service.obtener_pendientes_con_pdf(db, skip=skip, limit=limit, tenant_id=tenant_id)
 
 @router.get("/aprobadas", response_model=List[OrdenCompraDetalle])
 async def obtener_aprobadas(
@@ -47,7 +49,8 @@ async def obtener_aprobadas(
     fecha_hasta: date = Query(None, description="Fecha hasta (opcional)"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db),
+    request: Request = None,
+    db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
@@ -55,19 +58,22 @@ async def obtener_aprobadas(
     Si no se especifica usuario/fechas: solo las aprobadas hoy
     """
     service = OrdenCompraService()
+    tenant = getattr(request.state, 'tenant', None) if request else None
+    tenant_id = tenant.id if tenant else 1
     return await service.obtener_aprobadas_con_pdf(
-        db, 
-        usuario or None, 
-        fecha_desde, 
+        db,
+        usuario or None,
+        fecha_desde,
         fecha_hasta,
         skip=skip,
-        limit=limit
+        limit=limit,
+        tenant_id=tenant_id
     )
 
 @router.post("/aprobar", response_model=OrdenCompraAprobadoResponse)
 def aprobar_orden(
     orden_in: OrdenCompraAprobar,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
@@ -96,7 +102,7 @@ def aprobar_orden(
 @router.post("/desaprobar", response_model=OrdenCompraAprobadoResponse)
 def desaprobar_orden(
     orden_in: OrdenCompraAprobar,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """

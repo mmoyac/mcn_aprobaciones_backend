@@ -60,37 +60,23 @@ class PresupuestoService:
         )
     
     @staticmethod
-    def _verificar_pdf_existe(numero: int) -> int:
+    def _verificar_pdf_existe(numero: int, tenant_id: int) -> int:
         """
         Consulta directamente en PostgreSQL si existe PDF para el presupuesto.
-        Comunicación interna sin HTTP para mejor rendimiento y confiabilidad.
-        
-        Args:
-            numero: Número de presupuesto
-            
-        Returns:
-            int: 1 si existe PDF, 0 si no existe o hay error
+        Filtra por tenant_id para aislar PDFs entre tenants.
         """
         db_postgres = None
         try:
-            # Obtener sesión de PostgreSQL
             db_postgres = get_postgres_db_sync()
-            
-            # Consultar directamente en la tabla documentos_pdf
             documento = db_postgres.query(DocumentoPDF).filter_by(
-                tipo=1, 
-                numero=numero
+                tipo=1,
+                numero=numero,
+                tenant_id=tenant_id
             ).first()
-            
-            # Verificar si existe y tiene contenido PDF
-            result = 1 if (documento and documento.pdf) else 0
-            return result
-            
-        except Exception as e:
-            # En caso de error de BD, asumir que no hay PDF
+            return 1 if (documento and documento.pdf) else 0
+        except Exception:
             return 0
         finally:
-            # Cerrar sesión de PostgreSQL si existe
             if db_postgres:
                 db_postgres.close()
 

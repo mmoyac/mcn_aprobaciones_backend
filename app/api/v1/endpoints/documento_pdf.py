@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Depends, Response
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request, status, Depends, Response
 from fastapi.responses import Response as FastAPIResponse
 from app.core.api_key import verify_api_key
 from sqlalchemy.orm import Session
@@ -9,18 +9,27 @@ from sqlalchemy.exc import SQLAlchemyError
 router = APIRouter()
 
 
+def _get_tenant_id(request: Request) -> int:
+    """Extrae tenant_id del request state. Lanza 404 si no hay tenant."""
+    tenant = getattr(request.state, "tenant", None)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado para este dominio")
+    return tenant.id
+
+
 @router.get("/get")
 async def get_documento_pdf(
     tipo: int,
     numero: int,
+    request: Request,
     db: Session = Depends(get_postgres_db),
     _: bool = Depends(verify_api_key)
 ):
-    instance = db.query(DocumentoPDF).filter_by(tipo=tipo, numero=numero).first()
+    tenant_id = _get_tenant_id(request)
+    instance = db.query(DocumentoPDF).filter_by(tipo=tipo, numero=numero, tenant_id=tenant_id).first()
     if not instance or not instance.pdf:
         raise HTTPException(status_code=404, detail="Documento PDF no encontrado")
     return FastAPIResponse(content=instance.pdf, media_type="application/pdf")
-
 
 
 @router.post("/upsert")
@@ -28,26 +37,28 @@ async def upsert_documento_pdf(
     tipo: int = Form(...),
     numero: int = Form(...),
     pdf: UploadFile = File(...),
+    request: Request = None,
     db: Session = Depends(get_postgres_db),
     response: Response = None,
     _: bool = Depends(verify_api_key)
 ):
+    tenant_id = _get_tenant_id(request)
     try:
-        instance = db.query(DocumentoPDF).filter_by(tipo=tipo, numero=numero).first()
+        instance = db.query(DocumentoPDF).filter_by(tipo=tipo, numero=numero, tenant_id=tenant_id).first()
         pdf_bytes = await pdf.read()
         if instance:
             instance.pdf = pdf_bytes
             db.commit()
             db.refresh(instance)
             response.status_code = 200
-            return {"id": instance.id, "tipo": instance.tipo, "numero": instance.numero}
+            return {"id": instance.id, "tipo": instance.tipo, "numero": instance.numero, "tenant_id": instance.tenant_id}
         else:
-            new_doc = DocumentoPDF(tipo=tipo, numero=numero, pdf=pdf_bytes)
+            new_doc = DocumentoPDF(tipo=tipo, numero=numero, pdf=pdf_bytes, tenant_id=tenant_id)
             db.add(new_doc)
             db.commit()
             db.refresh(new_doc)
             response.status_code = 201
-            return {"id": new_doc.id, "tipo": new_doc.tipo, "numero": new_doc.numero}
+            return {"id": new_doc.id, "tipo": new_doc.tipo, "numero": new_doc.numero, "tenant_id": new_doc.tenant_id}
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

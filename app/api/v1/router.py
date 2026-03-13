@@ -3,7 +3,7 @@
 Router principal para API v1
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import presupuestos, usuarios, auth, documento_pdf, ordenes_compra
+from app.api.v1.endpoints import presupuestos, usuarios, auth, documento_pdf, ordenes_compra, tenant
 
 api_router = APIRouter()
 
@@ -31,4 +31,9 @@ api_router.include_router(
     documento_pdf.router,
     prefix="/documentos-pdf",
     tags=["Documentos PDF"]
+)
+api_router.include_router(
+    tenant.router,
+    prefix="/tenant",
+    tags=["Tenant"]
 )

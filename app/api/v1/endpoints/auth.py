@@ -1,10 +1,10 @@
 """
 Endpoints REST API para autenticación
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
+from app.core.deps import get_tenant_db
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.services.auth_service import AuthService
 
@@ -34,7 +34,8 @@ router = APIRouter()
 )
 async def login(
     credentials: LoginRequest,
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_tenant_db)
 ) -> LoginResponse:
     """
     Endpoint de login que autentica usuario y retorna token JWT.

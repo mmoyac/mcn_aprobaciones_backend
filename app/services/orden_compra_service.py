@@ -34,10 +34,11 @@ class OrdenCompraService:
             )
         ).scalar() or 0
 
-        # Pendientes: Sin aprobar en nivel 1, estado válido
+        # Pendientes: Sin aprobar en nivel 1 ni nivel 2, estado válido
         pendientes = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             and_(
                 OrdenCompra.ocp_A1_Ap == 0,
+                OrdenCompra.ocp_A2_Ap == 0,
                 OrdenCompra.ocp_pdt != 'N',
                 OrdenCompra.ocp_pdt != '',
                 OrdenCompra.ocp_pdt.isnot(None)
@@ -55,42 +56,36 @@ class OrdenCompraService:
             aprobadas=aprobadas
         )
 
-    async def _verificar_pdf_existe(self, loc_cod: int, ocp_nro: int) -> int:
+    async def _verificar_pdf_existe(self, loc_cod: int, ocp_nro: int, tenant_id: int) -> int:
         """
         Verifica si existe un PDF para la orden de compra.
-        CLAVE: Usa tipo=2 para órdenes de compra (diferente de presupuestos que usan tipo=1)
-        
-        Returns:
-            1 si existe PDF, 0 si no existe
+        Filtra por tenant_id para aislar PDFs entre tenants.
+        CLAVE: Usa tipo=2 para órdenes de compra.
         """
         try:
             from app.db.session_postgres import get_postgres_db_sync
-            
             postgres_session = get_postgres_db_sync()
-            
             try:
                 query = text("""
-                    SELECT COUNT(*) as count 
-                    FROM documentos_pdf 
-                    WHERE numero = :numero 
+                    SELECT COUNT(*) as count
+                    FROM documentos_pdf
+                    WHERE numero = :numero
                     AND tipo = 2
+                    AND tenant_id = :tenant_id
                 """)
-                
                 result = postgres_session.execute(query, {
-                    'numero': ocp_nro
+                    'numero': ocp_nro,
+                    'tenant_id': tenant_id
                 })
-                
                 count = result.fetchone()
                 return 1 if count and count[0] > 0 else 0
-                
             finally:
                 postgres_session.close()
-                
         except Exception as e:
             logger.error(f"Error verificando PDF para orden {ocp_nro}: {str(e)}")
             return 0
 
-    async def obtener_pendientes_con_pdf(self, db: Session, skip: int = 0, limit: int = 100) -> List[OrdenCompraDetalle]:
+    async def obtener_pendientes_con_pdf(self, db: Session, skip: int = 0, limit: int = 100, tenant_id: int = 1) -> List[OrdenCompraDetalle]:
         """
         Retorna órdenes pendientes con validación PDF.
         Filtro: ocp_A1_Ap=0 AND ocp_pdt<>'N' AND ocp_pdt<>' ' (sin aprobar en nivel 1)
@@ -100,6 +95,7 @@ class OrdenCompraService:
             ordenes = db.query(OrdenCompra).filter(
                 and_(
                     OrdenCompra.ocp_A1_Ap == 0,
+                    OrdenCompra.ocp_A2_Ap == 0,
                     OrdenCompra.ocp_pdt != 'N',
                     OrdenCompra.ocp_pdt != '',
                     OrdenCompra.ocp_pdt.isnot(None)
@@ -109,8 +105,7 @@ class OrdenCompraService:
             # Enriquecer con información PDF
             ordenes_detalle = []
             for orden in ordenes:
-                # Verificar PDF
-                tiene_pdf = await self._verificar_pdf_existe(orden.Loc_cod, orden.ocp_nro)
+                tiene_pdf = await self._verificar_pdf_existe(orden.Loc_cod, orden.ocp_nro, tenant_id)
                 
                 # Crear objeto OrdenCompraDetalle
                 orden_detalle = OrdenCompraDetalle(
@@ -137,12 +132,13 @@ class OrdenCompraService:
 
     async def obtener_aprobadas_con_pdf(
         self,
-        db: Session, 
-        user_id: str = None, 
-        fecha_desde: date = None, 
+        db: Session,
+        user_id: str = None,
+        fecha_desde: date = None,
         fecha_hasta: date = None,
-        skip: int = 0, 
-        limit: int = 100
+        skip: int = 0,
+        limit: int = 100,
+        tenant_id: int = 1
     ) -> List[OrdenCompraDetalle]:
         """
         Retorna órdenes aprobadas con validación PDF.
@@ -173,7 +169,7 @@ class OrdenCompraService:
             ordenes_detalle = []
             for orden in ordenes:
                 # Verificar PDF
-                tiene_pdf = await self._verificar_pdf_existe(orden.Loc_cod, orden.ocp_nro)
+                tiene_pdf = await self._verificar_pdf_existe(orden.Loc_cod, orden.ocp_nro, tenant_id)
                 
                 # Crear objeto OrdenCompraDetalle
                 orden_detalle = OrdenCompraDetalle(

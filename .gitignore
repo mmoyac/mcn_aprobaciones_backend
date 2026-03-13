@@ -46,6 +46,29 @@ env/
 *.log
 logs/
 
+# PostgreSQL Data (Development only)
+postgres_data/
+
+# MongoDB Data (Development only)
+mongo_data/
+
+# Node (debug scripts)
+node_modules/
+package-lock.json
+package.json
+
+# Debug scripts
+debug_*.py
+
+# Test Files (Local development)
+test_*.py
+test_*.ps1
+*.pdf
+check_*.py
+simple_check.*
+verify_*.ps1
+wait_*.ps1
+
 # OS
 .DS_Store
 Thumbs.db

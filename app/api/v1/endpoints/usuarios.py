@@ -5,8 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.db.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_tenant_db, get_current_user
 from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioDetalle
 from app.services.usuario_service import UsuarioService
@@ -30,7 +29,7 @@ router = APIRouter()
 async def listar_usuarios(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> List[UsuarioDetalle]:
     """
@@ -72,7 +71,7 @@ async def listar_usuarios(
     tags=["Usuarios"]
 )
 async def contar_usuarios(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> dict:
     """
