@@ -3,9 +3,8 @@ set -e
 
 echo "==> Verificando estado de migraciones Alembic..."
 
-# Si la tabla alembic_version no existe pero las tablas de la app ya existen
-# (base de datos creada antes de implementar alembic), stampeamos al head
-# para que alembic sepa que esas migraciones ya están aplicadas.
+# Desactivar set -e temporalmente para capturar el exit code del script Python
+set +e
 python - <<'EOF'
 import psycopg2, os, sys
 try:
@@ -29,12 +28,21 @@ except Exception as e:
     print(f"Warning al verificar DB: {e}")
     sys.exit(0)
 EOF
+CHECK_CODE=$?
+set -e
 
-if [ $? -eq 2 ]; then
+if [ "$CHECK_CODE" -eq 2 ]; then
     echo "==> Base de datos existente sin alembic_version detectada. Stampeando con head..."
     alembic stamp head
     echo "==> Stamp completado."
 fi
+
+echo "==> Ejecutando migraciones Alembic..."
+alembic upgrade head
+echo "==> Migraciones completadas."
+
+echo "==> Iniciando servidor FastAPI..."
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 echo "==> Ejecutando migraciones Alembic..."
 alembic upgrade head
