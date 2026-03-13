@@ -72,6 +72,3 @@ docs/
 
 # Docker
 .dockerignore
-
-# Alembic
-alembic.ini
