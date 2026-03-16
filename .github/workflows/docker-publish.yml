@@ -108,9 +108,9 @@ jobs:
             docker pull mmoyac/mcn_aprobaciones_backend:latest
             docker compose pull --ignore-pull-failures
             
-            # Detener y eliminar contenedor anterior COMPLETAMENTE
+            # Detener y eliminar contenedor anterior (SIN --volumes para preservar datos PostgreSQL)
             echo "🛑 Deteniendo servicios anteriores..."
-            docker compose down --volumes --remove-orphans
+            docker compose down --remove-orphans
             
             # Eliminar contenedor específico del backend si existe
             echo "🗑️ Eliminando contenedor backend anterior..."
