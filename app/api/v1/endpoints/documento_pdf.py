@@ -1,8 +1,11 @@
+import os
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request, status, Depends, Response
 from fastapi.responses import Response as FastAPIResponse
 from app.core.api_key import verify_api_key
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.db.session_postgres import get_postgres_db
+from app.db.tenant_session import create_tenant_session
 from app.models.documento_pdf import DocumentoPDF
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -62,3 +65,70 @@ async def upsert_documento_pdf(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/get-cliente")
+async def get_pdf_cliente(
+    loc_cod: int,
+    tipo: int,
+    numero: int,
+    request: Request,
+    _: bool = Depends(verify_api_key)
+):
+    """
+    Obtiene un PDF desde la tabla pdf001 de la base de datos del cliente (lexascl_reppdf).
+    El emp_cd (PdfEmpCd) se resuelve automáticamente del tenant del request.
+
+    Parámetros:
+        loc_cod: Código de local (PdfLocCod)
+        tipo:    Tipo de documento (PdfTipo)
+        numero:  Número de documento (PdfNumero)
+    """
+    tenant = getattr(request.state, "tenant", None)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado para este dominio")
+    emp_cd = tenant.id
+
+    host = os.getenv("REPPDF_HOST", "179.27.210.204")
+    port = int(os.getenv("REPPDF_PORT", "3306"))
+    db_name = os.getenv("REPPDF_DB", "lexascl_reppdf")
+    user = os.getenv("REPPDF_USER")
+    password = os.getenv("REPPDF_PASSWORD")
+
+    if not user or not password:
+        raise HTTPException(status_code=503, detail="Credenciales de base de datos de PDFs no configuradas")
+
+    db_cliente = create_tenant_session(
+        db_host=host,
+        db_port=port,
+        db_name=db_name,
+        db_user=user,
+        db_password=password
+    )
+
+    try:
+        result = db_cliente.execute(
+            text("""
+                SELECT PdfBlob FROM pdf001
+                WHERE PdfEmpCd = :emp_cd
+                  AND PdfLocCod = :loc_cod
+                  AND PdfTipo   = :tipo
+                  AND PdfNumero = :numero
+                LIMIT 1
+            """),
+            {"emp_cd": emp_cd, "loc_cod": loc_cod, "tipo": tipo, "numero": numero}
+        )
+        row = result.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="PDF no encontrado en la base de datos del cliente")
+        if not row[0] or len(bytes(row[0])) == 0:
+            raise HTTPException(status_code=422, detail="El registro existe pero no tiene contenido PDF")
+
+        return FastAPIResponse(content=bytes(row[0]), media_type="application/pdf")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener PDF del cliente: {str(e)}")
+    finally:
+        db_cliente.close()

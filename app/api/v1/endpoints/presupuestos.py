@@ -110,13 +110,15 @@ async def listar_presupuestos_pendientes(
         )
         tenant = getattr(request.state, 'tenant', None) if request else None
         tenant_id = tenant.id if tenant else 1
+
+        # Una sola query batch para todos los PDFs
+        items = [(p.Loc_cod, p.pre_nro) for p in presupuestos]
+        pdf_map = PresupuestoService._verificar_pdfs_batch(items, tenant_id, 1)
+
         # Enriquecer con información de PDFs
         presupuestos_enriquecidos = []
         for presupuesto in presupuestos:
-            # Verificar si tiene PDF asociado
-            tienepdf = PresupuestoService._verificar_pdf_existe(
-                presupuesto.pre_nro, tenant_id
-            )
+            tienepdf = pdf_map.get((presupuesto.Loc_cod, presupuesto.pre_nro), 0)
             
             # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
             presupuesto_dict = {
@@ -218,13 +220,15 @@ async def listar_presupuestos_aprobados(
         )
         tenant = getattr(request.state, 'tenant', None) if request else None
         tenant_id = tenant.id if tenant else 1
+
+        # Una sola query batch para todos los PDFs
+        items = [(p.Loc_cod, p.pre_nro) for p in presupuestos]
+        pdf_map = PresupuestoService._verificar_pdfs_batch(items, tenant_id, 1)
+
         # Enriquecer con información de PDFs
         presupuestos_enriquecidos = []
         for presupuesto in presupuestos:
-            # Verificar si tiene PDF asociado
-            tienepdf = PresupuestoService._verificar_pdf_existe(
-                presupuesto.pre_nro, tenant_id
-            )
+            tienepdf = pdf_map.get((presupuesto.Loc_cod, presupuesto.pre_nro), 0)
 
             # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
             presupuesto_dict = {

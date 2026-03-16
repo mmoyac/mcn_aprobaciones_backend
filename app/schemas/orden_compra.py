@@ -26,7 +26,7 @@ class OrdenCompraDetalle(OrdenCompraBase):
     ocp_fee: date
     proveedor_nombre: str
     monto_total: int
-    tienepdf: Optional[int] = Field(None, description="Indica si tiene PDF asociado (0=No, 1=Sí)", ge=0, le=1)
+    tienepdf: Optional[int] = Field(None, description="0=no existe, 1=tiene PDF, 2=existe sin contenido", ge=0, le=2)
     
     # Datos de aprobación (para la pestaña de aprobados)
     ocp_A2_Usu: Optional[str] = None

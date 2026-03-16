@@ -2,16 +2,15 @@
 Servicio de lógica de negocio para presupuestos
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, text
 from datetime import datetime
 import pytz
 import os
 from typing import List, Dict, Any
 from app.models.presupuesto import Presupuesto
 from app.models.usuario import Usuario
-from app.models.documento_pdf import DocumentoPDF
 from app.schemas.presupuesto import PresupuestoIndicadores
-from app.db.session_postgres import get_postgres_db_sync
+from app.db.tenant_session import create_tenant_session
 
 
 class PresupuestoService:
@@ -60,25 +59,70 @@ class PresupuestoService:
         )
     
     @staticmethod
-    def _verificar_pdf_existe(numero: int, tenant_id: int) -> int:
+    def _get_reppdf_session():
+        """Crea sesión a lexascl_reppdf usando env vars. Retorna None si no hay credenciales."""
+        host = os.getenv("REPPDF_HOST", "179.27.210.204")
+        port = int(os.getenv("REPPDF_PORT", "3306"))
+        db_name = os.getenv("REPPDF_DB", "lexascl_reppdf")
+        user = os.getenv("REPPDF_USER")
+        password = os.getenv("REPPDF_PASSWORD")
+        if not user or not password:
+            return None
+        return create_tenant_session(
+            db_host=host, db_port=port, db_name=db_name,
+            db_user=user, db_password=password
+        )
+
+    @staticmethod
+    def _verificar_pdfs_batch(items: list, tenant_id: int, tipo: int) -> dict:
         """
-        Consulta directamente en PostgreSQL si existe PDF para el presupuesto.
-        Filtra por tenant_id para aislar PDFs entre tenants.
+        Consulta en una sola query todos los PDFs para una lista de (loc_cod, numero).
+        Retorna dict {(loc_cod, numero): estado} donde estado: 0=no existe, 1=con PDF, 2=sin contenido.
         """
-        db_postgres = None
+        if not items:
+            return {}
+        db_cliente = PresupuestoService._get_reppdf_session()
+        if not db_cliente:
+            return {}
         try:
-            db_postgres = get_postgres_db_sync()
-            documento = db_postgres.query(DocumentoPDF).filter_by(
-                tipo=1,
-                numero=numero,
-                tenant_id=tenant_id
-            ).first()
-            return 1 if (documento and documento.pdf) else 0
+            # Construir lista de (loc_cod, numero) para la query
+            pairs = [(loc_cod, numero) for loc_cod, numero in items]
+            numeros = [p[1] for p in pairs]
+            result = db_cliente.execute(
+                text("""
+                    SELECT PdfLocCod, PdfNumero, LENGTH(PdfBlob) as blob_size
+                    FROM pdf001
+                    WHERE PdfEmpCd = :emp_cd
+                      AND PdfTipo   = :tipo
+                      AND PdfNumero IN :numeros
+                """),
+                {"emp_cd": tenant_id, "tipo": tipo, "numeros": tuple(numeros)}
+            )
+            rows = result.fetchall()
+            # Construir dict con resultado
+            pdf_map = {}
+            for row in rows:
+                key = (row[0], row[1])  # (loc_cod, numero)
+                blob_size = row[2] or 0
+                pdf_map[key] = 1 if blob_size > 0 else 2
+            # Los que no aparecieron = 0
+            for loc_cod, numero in pairs:
+                if (loc_cod, numero) not in pdf_map:
+                    pdf_map[(loc_cod, numero)] = 0
+            return pdf_map
         except Exception:
-            return 0
+            return {}
         finally:
-            if db_postgres:
-                db_postgres.close()
+            db_cliente.close()
+
+    @staticmethod
+    def _verificar_pdf_existe(loc_cod: int, numero: int, tenant_id: int) -> int:
+        """
+        Verifica si existe PDF en la tabla pdf001 del cliente (lexascl_reppdf).
+        Retorna: 0 = no existe, 1 = existe con PDF, 2 = existe sin PDF (blob vacío)
+        """
+        result = PresupuestoService._verificar_pdfs_batch([(loc_cod, numero)], tenant_id, 1)
+        return result.get((loc_cod, numero), 0)
 
     @staticmethod
     def obtener_presupuestos_pendientes(

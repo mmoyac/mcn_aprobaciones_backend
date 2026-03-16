@@ -17,6 +17,12 @@ services:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
       - API_KEY=${API_KEY}
+      # Base de datos PDFs del cliente
+      - REPPDF_HOST=${REPPDF_HOST:-179.27.210.204}
+      - REPPDF_PORT=${REPPDF_PORT:-3306}
+      - REPPDF_DB=${REPPDF_DB:-lexascl_reppdf}
+      - REPPDF_USER=${REPPDF_USER}
+      - REPPDF_PASSWORD=${REPPDF_PASSWORD}
       # Configuración de la aplicación
       - APP_ENV=${APP_ENV:-production}
       - DEBUG=${DEBUG:-False}
