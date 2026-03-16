@@ -25,9 +25,26 @@ class TenantMiddleware(BaseHTTPMiddleware):
         # Extraer host limpio (sin puerto)
         host = request.headers.get("host", "").split(":")[0].lower()
 
-        # X-Tenant-Domain tiene prioridad (útil en producción donde el API
-        # está en un dominio distinto al del frontend, ej: api.lexastech.cl)
-        tenant_domain = request.headers.get("x-tenant-domain", "").strip().lower() or host
+        # Prioridad de resolución de dominio:
+        # 1. X-Tenant-Domain (header explícito del frontend)
+        # 2. Origin (enviado automáticamente por el browser en requests cross-origin)
+        # 3. Referer (fallback adicional)
+        # 4. Host (último recurso)
+        x_tenant = request.headers.get("x-tenant-domain", "").strip().lower()
+        origin = request.headers.get("origin", "").strip().lower()
+        referer = request.headers.get("referer", "").strip().lower()
+
+        if x_tenant:
+            tenant_domain = x_tenant
+        elif origin:
+            # Origin tiene formato https://dominio.com — extraer solo el hostname
+            from urllib.parse import urlparse
+            tenant_domain = urlparse(origin).hostname or host
+        elif referer:
+            from urllib.parse import urlparse
+            tenant_domain = urlparse(referer).hostname or host
+        else:
+            tenant_domain = host
 
         if tenant_domain:
             db = SessionPostgres()
