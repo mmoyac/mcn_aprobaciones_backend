@@ -8,6 +8,9 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.db.session_postgres import SessionPostgres
 from app.models.tenant import Tenant
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Rutas que no requieren resolución de tenant
 _BYPASS_PATHS = {"/", "/health", "/docs", "/redoc", "/openapi.json", "/db-test"}
@@ -54,9 +57,10 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     Tenant.activo == True
                 ).first()
                 request.state.tenant = tenant
-            except Exception:
-                # Si la tabla aún no existe (ej: primera migración), no bloquear
-                pass
+                if not tenant:
+                    logger.warning(f"Tenant no encontrado para dominio: '{tenant_domain}' (path: {path})")
+            except Exception as e:
+                logger.error(f"Error al resolver tenant para dominio '{tenant_domain}': {e}", exc_info=True)
             finally:
                 db.close()
 
