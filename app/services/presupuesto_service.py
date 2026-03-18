@@ -256,19 +256,29 @@ class PresupuestoService:
         """
         if len(q) < 3:
             return []
-        like_q = f"%{q}%"
+
+        # Cada palabra debe aparecer en alguno de los dos campos (AND entre palabras)
+        palabras = q.split()
+        condiciones = " AND ".join(
+            f"(c.pre_ref LIKE :w{i} OR cl.cli_namel LIKE :w{i})"
+            for i in range(len(palabras))
+        )
+        params = {f"w{i}": f"%{p}%" for i, p in enumerate(palabras)}
+        params["limit"] = limit
+        params["skip"] = skip
+
         result = db.execute(
-            text("""
+            text(f"""
                 SELECT c.Loc_cod, c.pre_nro, c.pre_fec, c.pre_rut, cl.cli_namel,
                        c.sol_nro, c.pre_ref, c.Pre_Neto, c.pre_est, c.pre_vbgg,
                        c.pre_vbggUsu, c.pre_vbggDt
                 FROM cot013 c
                 INNER JOIN clientea cl ON c.pre_rut = cl.Cli_Code
-                WHERE c.pre_ref LIKE :q OR cl.cli_namel LIKE :q
+                WHERE {condiciones}
                 ORDER BY c.pre_fec DESC
                 LIMIT :limit OFFSET :skip
             """),
-            {"q": like_q, "limit": limit, "skip": skip}
+            params
         ).fetchall()
 
         rows = result
