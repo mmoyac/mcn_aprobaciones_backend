@@ -74,13 +74,14 @@ class OrdenCompraService:
     async def _verificar_pdf_existe(self, loc_cod: int, ocp_nro: int, tenant_id: int) -> int:
         result = self._verificar_pdfs_batch([(loc_cod, ocp_nro)], tenant_id)
         return result.get((loc_cod, ocp_nro), 0)
+
+    def obtener_indicadores(self, db: Session, user_id: str = None) -> OrdenCompraIndicadores:
         """
         Retorna los indicadores para el dashboard:
-        - Total: Todas las órdenes vigentes 
-        - Pendientes: ocp_A1_Ap=0 AND ocp_pdt<>'N' AND ocp_pdt<>' ' (sin aprobar en nivel 1)
+        - Total: Todas las órdenes vigentes
+        - Pendientes: ocp_A1_Ap=1 AND ocp_A2_Ap=0 (liberadas pero no aprobadas)
         - Aprobadas: ocp_A2_Ap=1 (aprobadas finalmente)
         """
-        # Total de órdenes vigentes
         total = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             and_(
                 OrdenCompra.ocp_pdt != 'N',
@@ -89,10 +90,9 @@ class OrdenCompraService:
             )
         ).scalar() or 0
 
-        # Pendientes: Sin aprobar en nivel 1 ni nivel 2, estado válido
         pendientes = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             and_(
-                OrdenCompra.ocp_A1_Ap == 0,
+                OrdenCompra.ocp_A1_Ap == 1,
                 OrdenCompra.ocp_A2_Ap == 0,
                 OrdenCompra.ocp_pdt != 'N',
                 OrdenCompra.ocp_pdt != '',
@@ -100,7 +100,6 @@ class OrdenCompraService:
             )
         ).scalar() or 0
 
-        # Aprobadas finalmente
         aprobadas = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             OrdenCompra.ocp_A2_Ap == 1
         ).scalar() or 0
@@ -297,6 +296,26 @@ class OrdenCompraService:
         orden.ocp_A2_Dt = now_chile.date()
         orden.ocp_A2_Hr = now_chile.strftime("%H:%M:%S")
 
+        db.commit()
+        db.refresh(orden)
+        return orden
+
+    def anular_orden(self, db: Session, ocp_nro: int, loc_cod: int) -> Optional[OrdenCompra]:
+        """
+        Anula una orden de compra seteando ocp_pdt = 'N'.
+        """
+        orden = db.query(OrdenCompra).filter(
+            and_(
+                OrdenCompra.ocp_nro == ocp_nro,
+                OrdenCompra.Loc_cod == loc_cod,
+                OrdenCompra.ocp_pdt != 'N'
+            )
+        ).first()
+
+        if not orden:
+            return None
+
+        orden.ocp_pdt = 'N'
         db.commit()
         db.refresh(orden)
         return orden

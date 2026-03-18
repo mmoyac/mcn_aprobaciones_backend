@@ -49,6 +49,19 @@ El código fuente del backend (`mcn-aprobaciones-backend`) utiliza una arquitect
 
 ⚠️ **CRÍTICO:** En producción el puerto 8000 está ocupado por otro servicio. SIEMPRE usar puerto 8001 en `docker-compose.prod.yml`
 
+## 🌐 URLs de Desarrollo por Tenant (Frontend)
+
+El frontend en desarrollo corre en el puerto `3000` con subdominios por tenant:
+
+| Tenant | Desarrollo | Producción |
+| :--- | :--- | :--- |
+| **mga** | http://mga.localhost:3000/ | http://aprobaciones-mga.lexastech.cl/ |
+| **gontec** | http://gontec.localhost:3000/ | http://aprobaciones-gontec.lexastech.cl/ |
+| **mgacom** | http://mgacom.localhost:3000/ | https://aprobaciones-mgacom.lexastech.cl/ ⚠️ pendiente de configurar |
+| **mgamaq** | http://mgamaq.localhost:3000/ | https://aprobaciones-mgamaq.lexastech.cl/ ⚠️ pendiente de configurar |
+
+El backend API en desarrollo se accede en `http://localhost:8050/api/v1` (configurado en `.env.local` del frontend).
+
 ## 3. 🐳 Configuración del Entorno
 
 ### 3.1. Desarrollo Local

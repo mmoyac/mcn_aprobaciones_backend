@@ -14,6 +14,7 @@ from app.schemas.presupuesto import (
     PresupuestoAprobar,
     PresupuestoAprobadoResponse
 )
+from app.schemas.presupuesto_detalle import DetallePresupuesto, PresupuestoHistorico
 from app.services.presupuesto_service import PresupuestoService
 
 router = APIRouter()
@@ -270,6 +271,49 @@ async def listar_presupuestos_aprobados(
         )
 
 
+@router.get(
+    "/historico",
+    response_model=List[PresupuestoHistorico],
+    summary="Buscar historial de presupuestos",
+    tags=["Presupuestos"]
+)
+async def buscar_historico(
+    q: str,
+    skip: int = 0,
+    limit: int = 50,
+    request: Request = None,
+    db: Session = Depends(get_tenant_db),
+    current_user: Usuario = Depends(get_current_user)
+) -> List[PresupuestoHistorico]:
+    try:
+        tenant = getattr(request.state, 'tenant', None) if request else None
+        tenant_id = tenant.id if tenant else 1
+        return PresupuestoService.buscar_historico(db, q, skip=skip, limit=min(limit, 50), tenant_id=tenant_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al buscar historial: {str(e)}")
+
+
+@router.get(
+    "/{loc_cod}/{pre_nro}/detalle",
+    response_model=DetallePresupuesto,
+    summary="Obtener detalle de un presupuesto",
+    tags=["Presupuestos"]
+)
+async def obtener_detalle_presupuesto(
+    loc_cod: int,
+    pre_nro: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: Usuario = Depends(get_current_user)
+) -> DetallePresupuesto:
+    try:
+        return PresupuestoService.obtener_detalle(db, loc_cod, pre_nro)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener detalle del presupuesto: {str(e)}"
+        )
+
+
 @router.post(
     "/aprobar",
     response_model=PresupuestoAprobadoResponse,
@@ -336,6 +380,43 @@ async def aprobar_presupuesto(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al aprobar presupuesto: {str(e)}"
+        )
+
+
+@router.post(
+    "/anular",
+    response_model=PresupuestoAprobadoResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Anular presupuesto",
+    tags=["Presupuestos"]
+)
+async def anular_presupuesto(
+    data: PresupuestoAprobar,
+    db: Session = Depends(get_tenant_db),
+    usuario: str = Depends(get_current_user_id)
+) -> PresupuestoAprobadoResponse:
+    from datetime import date as date_type
+    try:
+        resultado = PresupuestoService.anular_presupuesto(
+            db,
+            loc_cod=data.Loc_cod,
+            pre_nro=data.pre_nro,
+        )
+        return PresupuestoAprobadoResponse(
+            success=True,
+            message="Presupuesto anulado exitosamente",
+            Loc_cod=resultado["Loc_cod"],
+            pre_nro=resultado["pre_nro"],
+            pre_vbggUsu="",
+            pre_vbggDt=date_type.today(),
+            pre_vbggTime=""
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al anular presupuesto: {str(e)}"
         )
 
 

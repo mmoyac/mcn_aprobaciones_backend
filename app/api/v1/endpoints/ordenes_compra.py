@@ -99,6 +99,28 @@ def aprobar_orden(
         new_status="aprobada"
     )
 
+@router.post("/anular", response_model=OrdenCompraAprobadoResponse)
+def anular_orden(
+    orden_in: OrdenCompraAprobar,
+    db: Session = Depends(get_tenant_db),
+    current_user: str = Depends(get_current_user_id)
+) -> Any:
+    """
+    Anular una orden de compra (ocp_pdt = 'N').
+    """
+    service = OrdenCompraService()
+    orden = service.anular_orden(db, orden_in.ocp_nro, orden_in.Loc_cod)
+
+    if not orden:
+        raise HTTPException(status_code=404, detail="La orden de compra no existe o ya está anulada")
+
+    return OrdenCompraAprobadoResponse(
+        message="Orden anulada exitosamente",
+        ocp_nro=orden.ocp_nro,
+        new_status="anulada"
+    )
+
+
 @router.post("/desaprobar", response_model=OrdenCompraAprobadoResponse)
 def desaprobar_orden(
     orden_in: OrdenCompraAprobar,

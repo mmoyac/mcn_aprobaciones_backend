@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 from app.models.presupuesto import Presupuesto
 from app.models.usuario import Usuario
 from app.schemas.presupuesto import PresupuestoIndicadores
+from app.schemas.presupuesto_detalle import DetallePresupuesto, ItemPresupuesto, CostoItem, PresupuestoHistorico
 from app.db.tenant_session import create_tenant_session
 
 
@@ -245,6 +246,154 @@ class PresupuestoService:
             "pre_vbggUsu": presupuesto.pre_vbggUsu,
             "pre_vbggDt": presupuesto.pre_vbggDt,
             "pre_vbggTime": presupuesto.pre_vbggTime
+        }
+
+    @staticmethod
+    def buscar_historico(db: Session, q: str, skip: int = 0, limit: int = 50, tenant_id: int = 1) -> List[PresupuestoHistorico]:
+        """
+        Busca presupuestos históricos por referencia OR nombre de cliente.
+        Requiere mínimo 3 caracteres.
+        """
+        if len(q) < 3:
+            return []
+        like_q = f"%{q}%"
+        result = db.execute(
+            text("""
+                SELECT c.Loc_cod, c.pre_nro, c.pre_fec, c.pre_rut, cl.cli_namel,
+                       c.sol_nro, c.pre_ref, c.Pre_Neto, c.pre_est, c.pre_vbgg,
+                       c.pre_vbggUsu, c.pre_vbggDt
+                FROM cot013 c
+                INNER JOIN clientea cl ON c.pre_rut = cl.Cli_Code
+                WHERE c.pre_ref LIKE :q OR cl.cli_namel LIKE :q
+                ORDER BY c.pre_fec DESC
+                LIMIT :limit OFFSET :skip
+            """),
+            {"q": like_q, "limit": limit, "skip": skip}
+        ).fetchall()
+
+        rows = result
+
+        # Batch PDF check
+        items = [(row[0], row[1]) for row in rows]
+        pdf_map = PresupuestoService._verificar_pdfs_batch(items, tenant_id, 1) if items else {}
+
+        return [
+            PresupuestoHistorico(
+                Loc_cod=row[0],
+                pre_nro=row[1],
+                pre_fec=row[2],
+                pre_rut=row[3],
+                cliente_nombre=row[4] or "",
+                sol_nro=row[5],
+                pre_ref=row[6] or "",
+                Pre_Neto=row[7] or 0,
+                pre_est=row[8] or "",
+                pre_vbgg=row[9] or 0,
+                pre_vbggUsu=row[10] or "",
+                pre_vbggDt=row[11],
+                tienepdf=pdf_map.get((row[0], row[1]), 0),
+            )
+            for row in rows
+        ]
+
+    @staticmethod
+    def obtener_detalle(db: Session, loc_cod: int, pre_nro: int) -> DetallePresupuesto:
+        """
+        Obtiene el detalle completo de un presupuesto: ítems (cot005) y costos por ítem (cot005l).
+        Usa 2 queries batch para evitar N+1.
+        """
+        TIPOS = {
+            1: "Material",
+            2: "Máquina",
+            3: "Servicio Externo",
+            4: "Horas Técnicas",
+            5: "Margen",
+            6: "Descuento"
+        }
+
+        # Query 1: todos los ítems del presupuesto
+        items_result = db.execute(
+            text("""
+                SELECT pre_lin, pre_des, pre_de1, pre_de2, pre_de3, pre_de4,
+                       pre_cpr, pre_pre, pre_dct
+                FROM cot005
+                WHERE loc_cod = :loc_cod AND pre_nro = :pre_nro
+                ORDER BY pre_lin
+            """),
+            {"loc_cod": loc_cod, "pre_nro": pre_nro}
+        ).fetchall()
+
+        # Query 2: todos los costos del presupuesto (batch)
+        costos_result = db.execute(
+            text("""
+                SELECT pre_lin, pre_dtlin, Pre_DtTip, Pre_DtCant, Pre_DtPre, Pre_DtDescrip
+                FROM cot005l
+                WHERE loc_cod = :loc_cod AND pre_nro = :pre_nro
+                ORDER BY pre_lin, pre_dtlin
+            """),
+            {"loc_cod": loc_cod, "pre_nro": pre_nro}
+        ).fetchall()
+
+        # Agrupar costos por pre_lin en memoria
+        costos_por_item: Dict[int, List[CostoItem]] = {}
+        for row in costos_result:
+            lin = row[0]
+            costo = CostoItem(
+                pre_lin=row[0],
+                pre_dtlin=row[1],
+                Pre_DtTip=row[2] or 0,
+                tipo_nombre=TIPOS.get(row[2], "Desconocido"),
+                Pre_DtCant=float(row[3] or 0),
+                Pre_DtPre=float(row[4] or 0),
+                Pre_DtDescrip=row[5] or ""
+            )
+            costos_por_item.setdefault(lin, []).append(costo)
+
+        # Construir lista de ítems
+        items = []
+        for row in items_result:
+            lin = row[0]
+            items.append(ItemPresupuesto(
+                pre_lin=lin,
+                pre_des=row[1] or "",
+                pre_de1=row[2] or "",
+                pre_de2=row[3] or "",
+                pre_de3=row[4] or "",
+                pre_de4=row[5] or "",
+                pre_cpr=float(row[6] or 0),
+                pre_pre=float(row[7] or 0),
+                pre_dct=float(row[8] or 0),
+                costos=costos_por_item.get(lin, [])
+            ))
+
+        return DetallePresupuesto(loc_cod=loc_cod, pre_nro=pre_nro, items=items)
+
+    @staticmethod
+    def anular_presupuesto(
+        db: Session,
+        loc_cod: int,
+        pre_nro: int,
+    ) -> dict:
+        """
+        Anula un presupuesto seteando pre_est = 'N'.
+        """
+        presupuesto = db.query(Presupuesto).filter(
+            and_(
+                Presupuesto.Loc_cod == loc_cod,
+                Presupuesto.pre_nro == pre_nro,
+                Presupuesto.pre_est != 'N'
+            )
+        ).first()
+
+        if not presupuesto:
+            raise ValueError(f"Presupuesto no encontrado o ya anulado: Loc_cod={loc_cod}, pre_nro={pre_nro}")
+
+        presupuesto.pre_est = 'N'
+        db.commit()
+
+        return {
+            "Loc_cod": presupuesto.Loc_cod,
+            "pre_nro": presupuesto.pre_nro,
         }
 
     @staticmethod
