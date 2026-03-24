@@ -92,11 +92,9 @@ class OrdenCompraService:
 
         pendientes = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             and_(
-                OrdenCompra.ocp_A1_Ap == 1,
-                OrdenCompra.ocp_A2_Ap == 0,
-                OrdenCompra.ocp_pdt != 'N',
-                OrdenCompra.ocp_pdt != '',
-                OrdenCompra.ocp_pdt.isnot(None)
+                OrdenCompra.ocp_A1_Ap == 0,
+                OrdenCompra.ocp_A4_Ap == 1,
+                OrdenCompra.ocp_pdt.in_(['T', 'I', 'N'])
             )
         ).scalar() or 0
 
@@ -165,10 +163,8 @@ class OrdenCompraService:
             ordenes = db.query(OrdenCompra).filter(
                 and_(
                     OrdenCompra.ocp_A1_Ap == 0,
-                    OrdenCompra.ocp_A2_Ap == 0,
-                    OrdenCompra.ocp_pdt != 'N',
-                    OrdenCompra.ocp_pdt != '',
-                    OrdenCompra.ocp_pdt.isnot(None)
+                    OrdenCompra.ocp_A4_Ap == 1,
+                    OrdenCompra.ocp_pdt.in_(['T', 'I', 'N'])
                 )
             ).order_by(OrdenCompra.ocp_fec.desc()).offset(skip).limit(limit).all()
 
