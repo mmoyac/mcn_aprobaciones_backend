@@ -86,7 +86,7 @@ REQUIRED_SCHEMA = {
         "ocp_A2_Ap", "ocp_A2_Usu", "ocp_A2_Dt", "ocp_A2_Hr",
     ],
     "proveea": ["pro_rut", "pro_nom"],
-    "ctbm01": ["UserCd", "UserNom", "UserLlave"],
+    "ctbm01": ["UserCd", "UserDs", "UserLlave"],
 }
 
 
@@ -138,13 +138,13 @@ def check_tenant_db(request: Request, db: Session = Depends(get_tenant_db)) -> D
             ))
             continue
 
-        # Obtener columnas reales de la tabla
+        # Obtener columnas reales de la tabla (en minúsculas para comparación case-insensitive)
         columnas_reales = {
-            row[0]
+            row[0].lower()
             for row in db.execute(text(f"DESCRIBE `{tabla}`")).fetchall()
         }
 
-        faltantes = [c for c in columnas_requeridas if c not in columnas_reales]
+        faltantes = [c for c in columnas_requeridas if c.lower() not in columnas_reales]
         ok = len(faltantes) == 0
 
         checks.append(TableCheck(
