@@ -67,7 +67,8 @@ class PresupuestoDetalle(PresupuestoBase):
     pre_trnFec: date = Field(..., description="Fecha de transacción")
     pre_trnusu: str = Field(..., description="Usuario de transacción")
     tienepdf: Optional[int] = Field(None, description="0=no existe, 1=tiene PDF, 2=existe sin contenido", ge=0, le=2)
-    
+    loc_des: Optional[str] = Field(None, description="Nombre de la sucursal")
+
     class Config:
         from_attributes = True
         json_schema_extra = {

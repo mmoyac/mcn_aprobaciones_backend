@@ -8,6 +8,7 @@ import asyncio
 
 from app.core.deps import get_tenant_db, get_current_user, get_current_user_id
 from app.models.usuario import Usuario
+from app.models.local import Local
 from app.schemas.presupuesto import (
     PresupuestoIndicadores,
     PresupuestoDetalle,
@@ -79,7 +80,7 @@ async def obtener_indicadores(
 )
 async def listar_presupuestos_pendientes(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 5000,
     request: Request = None,
     db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
@@ -99,12 +100,12 @@ async def listar_presupuestos_pendientes(
         HTTPException: Error 400 si los parámetros son inválidos
         HTTPException: Error 500 si hay problemas con la base de datos
     """
-    if limit > 1000:
+    if limit > 5000:
         raise HTTPException(
             status_code=400,
-            detail="El límite máximo es 1000 registros"
+            detail="El límite máximo es 5000 registros"
         )
-    
+
     try:
         presupuestos = PresupuestoService.obtener_presupuestos_pendientes(
             db, skip=skip, limit=limit
@@ -116,14 +117,17 @@ async def listar_presupuestos_pendientes(
         items = [(p.Loc_cod, p.pre_nro) for p in presupuestos]
         pdf_map = PresupuestoService._verificar_pdfs_batch(items, tenant_id, 1)
 
-        # Enriquecer con información de PDFs
+        # Batch lookup de nombres de sucursales
+        loc_cods = list({p.Loc_cod for p in presupuestos})
+        locales = db.query(Local).filter(Local.Loc_cod.in_(loc_cods)).all()
+        loc_map = {l.Loc_cod: l.Loc_des for l in locales}
+
+        # Enriquecer con información de PDFs y sucursal
         presupuestos_enriquecidos = []
         for presupuesto in presupuestos:
             tienepdf = pdf_map.get((presupuesto.Loc_cod, presupuesto.pre_nro), 0)
-            
-            # Crear diccionario con todos los campos requeridos por PresupuestoDetalle
+
             presupuesto_dict = {
-                # Campos de PresupuestoBase
                 "Loc_cod": presupuesto.Loc_cod,
                 "pre_nro": presupuesto.pre_nro,
                 "pre_est": presupuesto.pre_est,
@@ -134,8 +138,6 @@ async def listar_presupuestos_pendientes(
                 "Pre_Neto": presupuesto.Pre_Neto,
                 "Pre_vbLib": presupuesto.Pre_vbLib,
                 "pre_vbgg": presupuesto.pre_vbgg,
-                
-                # Campos adicionales de PresupuestoDetalle
                 "pre_gl1": presupuesto.pre_gl1,
                 "pre_fecAdj": presupuesto.pre_fecAdj,
                 "pre_VbLibUsu": presupuesto.Pre_VbLibUsu,
@@ -144,12 +146,10 @@ async def listar_presupuestos_pendientes(
                 "pre_vbggDt": presupuesto.pre_vbggDt,
                 "pre_trnFec": presupuesto.pre_trnFec,
                 "pre_trnusu": presupuesto.pre_trnusu,
-                
-                # Campo nuevo con PDF
-                "tienepdf": tienepdf
+                "tienepdf": tienepdf,
+                "loc_des": loc_map.get(presupuesto.Loc_cod)
             }
-            
-            # Crear objeto PresupuestoDetalle con todos los campos
+
             presupuesto_detalle = PresupuestoDetalle(**presupuesto_dict)
             presupuestos_enriquecidos.append(presupuesto_detalle)
         

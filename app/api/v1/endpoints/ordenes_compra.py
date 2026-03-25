@@ -28,14 +28,14 @@ def obtener_indicadores(
 @router.get("/pendientes", response_model=List[OrdenCompraDetalle])
 async def obtener_pendientes(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(5000, ge=1, le=5000),
     request: Request = None,
     db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
     """
     Obtener órdenes pendientes con validación PDF.
-    Filtro: ocp_A1_Ap=1 AND ocp_A2_Ap=0 (liberadas pero no aprobadas)
+    Filtro: ocp_A1_Ap=0 AND ocp_A4_Ap=1 AND ocp_pdt IN ('T','I','N')
     """
     service = OrdenCompraService()
     tenant = getattr(request.state, 'tenant', None) if request else None

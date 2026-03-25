@@ -10,8 +10,8 @@ from app.core.security import decode_access_token
 from app.db.tenant_session import create_tenant_session
 from app.models.usuario import Usuario
 
-# Esquema de seguridad Bearer Token
-security = HTTPBearer()
+# Esquema de seguridad Bearer Token (auto_error=False para retornar 401 en lugar de 403)
+security = HTTPBearer(auto_error=False)
 
 
 def get_tenant_db(request: Request) -> Generator[Session, None, None]:
@@ -45,6 +45,12 @@ async def get_current_user(
     """
     Dependency que valida el token JWT y retorna el usuario actual.
     """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token no proporcionado",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     token = credentials.credentials
 
     usuario_id = decode_access_token(token)

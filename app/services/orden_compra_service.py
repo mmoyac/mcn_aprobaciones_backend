@@ -7,6 +7,7 @@ from typing import List, Optional
 import logging
 
 from app.models.orden_compra import OrdenCompra
+from app.models.local import Local
 from app.schemas.orden_compra import OrdenCompraIndicadores, OrdenCompraDetalle
 from app.db.tenant_session import create_tenant_session
 
@@ -160,7 +161,9 @@ class OrdenCompraService:
         """
         try:
             # Consulta con JOIN a proveedor
-            ordenes = db.query(OrdenCompra).filter(
+            ordenes = db.query(OrdenCompra, Local.Loc_des).outerjoin(
+                Local, OrdenCompra.Loc_cod == Local.Loc_cod
+            ).filter(
                 and_(
                     OrdenCompra.ocp_A1_Ap == 0,
                     OrdenCompra.ocp_A4_Ap == 1,
@@ -169,15 +172,14 @@ class OrdenCompraService:
             ).order_by(OrdenCompra.ocp_fec.desc()).offset(skip).limit(limit).all()
 
             # Batch query: una sola consulta para todos los PDFs
-            items = [(o.Loc_cod, o.ocp_nro) for o in ordenes]
+            items = [(o.Loc_cod, o.ocp_nro) for o, _ in ordenes]
             pdf_map = self._verificar_pdfs_batch(items, tenant_id)
 
-            # Enriquecer con información PDF
+            # Enriquecer con información PDF y sucursal
             ordenes_detalle = []
-            for orden in ordenes:
+            for orden, loc_des in ordenes:
                 tiene_pdf = pdf_map.get((orden.Loc_cod, orden.ocp_nro), 0)
-                
-                # Crear objeto OrdenCompraDetalle
+
                 orden_detalle = OrdenCompraDetalle(
                     Loc_cod=orden.Loc_cod,
                     ocp_nro=orden.ocp_nro,
@@ -190,7 +192,8 @@ class OrdenCompraService:
                     ocp_fee=orden.ocp_fee,
                     proveedor_nombre=orden.proveedor_nombre,
                     monto_total=orden.monto_total,
-                    tienepdf=tiene_pdf
+                    tienepdf=tiene_pdf,
+                    loc_des=loc_des
                 )
                 ordenes_detalle.append(orden_detalle)
 
