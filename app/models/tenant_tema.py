@@ -13,5 +13,4 @@ class TenantTema(Base):
     color_background = Column(String(7), nullable=False, server_default="#0F172A")
     color_surface = Column(String(7), nullable=False, server_default="#1E293B")
     color_text = Column(String(7), nullable=False, server_default="#F8FAFC")
-    logo_url = Column(String(500), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

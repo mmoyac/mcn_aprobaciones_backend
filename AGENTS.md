@@ -34,11 +34,35 @@ El código fuente del backend (`mcn-aprobaciones-backend`) utiliza una arquitect
 
 ## 💾 Base de Datos
 
-* **Servidor:** `179.27.210.204:3306`
-* **Base de Datos:** Se usa una BD existente en MySQL con tablas ya creadas
-* **Versión:** MySQL 5.7.7 - 5.7.23
-* **Usuario:** lexasdulce
-* **Database:** lexascl_mga
+### MySQL por Tenant (datos de negocio)
+
+Las credenciales de cada tenant están almacenadas en la tabla `tenant_conexiones` de PostgreSQL. El middleware las inyecta automáticamente en cada request.
+
+| Tenant | Servidor | Base de Datos | Usuario |
+| :--- | :--- | :--- | :--- |
+| **mga** | `179.27.152.194:3306` | `lexascl_mga` | `lexascl_mgaadm` |
+| **gontec** | `179.27.210.204:3306` | `lexascl_gontec` | `lexasdulce` |
+
+* **Versión MySQL:** 5.7.7 - 5.7.23
+
+⚠️ **IMPORTANTE:** El servidor de mga es `179.27.152.194`, distinto al de gontec (`179.27.210.204`).
+
+### REPPDF (PDFs de documentos)
+
+Todos los tenants usan el mismo servidor para PDFs:
+* **Servidor:** `179.27.152.194:3306`
+* **Base de Datos:** `lexascl_reppdf`
+* **Usuario:** `lexascl_mgaadm`
+* **Tabla:** `pdf001` — diferencia tenants por columna `PdfEmpCd` (tenant_id)
+* **Tipos:** `PdfTipo=1` presupuestos, `PdfTipo=2` órdenes de compra
+
+### IPs de conexión al servidor MySQL
+
+El servidor MySQL de mga concede acceso por IP de origen. Si falla con `Access Denied`, verificar:
+* **Desde VPS (producción):** IP del VPS (`168.231.96.205`)
+* **Desde Docker local (desarrollo):** IP `45.237.132.130` (no la IP pública de la máquina)
+
+Para diagnosticar: `docker exec mcn_aprobaciones_backend python -c "import socket; s=socket.create_connection(('179.27.152.194', 3306), 5); print('OK'); s.close()"`
 
 ## 🔌 Puertos Críticos
 
@@ -215,18 +239,44 @@ Las migraciones se ejecutan automáticamente al iniciar el contenedor Docker (si
 **Todos los endpoints requieren autenticación JWT en header:** `Authorization: Bearer <token>`
 
 - **GET** `/indicadores` - Totales de presupuestos pendientes y aprobados
-- **GET** `/pendientes` - Lista presupuestos pendientes (Pre_vbLib=1 AND pre_vbgg=0) **con campo `tienepdf`**
-  - Incluye validación automática de existencia de PDF asociado
-  - Campo `tienepdf`: 1 si existe PDF, 0 si no existe
-- **GET** `/aprobados?usuario={user}&fecha_desde={date}&fecha_hasta={date}` - Presupuestos aprobados filtrados por usuario y rango de fechas
+- **GET** `/pendientes` - Lista presupuestos pendientes (Pre_vbLib=1 AND pre_vbgg=0)
+  - Campo `tienepdf`: 0=no existe, 1=tiene PDF, 2=existe sin contenido
+  - Campo `loc_des`: nombre de sucursal (JOIN con tabla `loc001`)
+  - Límite: 5000 registros
+- **GET** `/aprobados?usuario={user}&fecha_desde={date}&fecha_hasta={date}` - Presupuestos aprobados
+- **GET** `/{loc_cod}/{pre_nro}/detalle` - Detalle completo de un presupuesto
 - **POST** `/aprobar` - Aprueba presupuesto (usuario se obtiene del token JWT)
   - Request: `{"Loc_cod": 1, "pre_nro": 12345}`
-  - Valida que el usuario del token exista antes de aprobar
-  - Actualiza: pre_vbgg=1, pre_vbggDt, pre_vbggTime, pre_vbggUsu
+- **POST** `/anular` - Anula presupuesto
+- **POST** `/desaprobar` - Deshace aprobación
+- **GET** `/historico?q={texto}` - Búsqueda histórico por palabras clave
 
-**Paginación:** Todos los endpoints de lista soportan `skip` y `limit` (max 1000)
+### 🛒 Órdenes de Compra (`/api/v1/ordenes-compra`)
 
-**Integración PDF:** El endpoint `/pendientes` consulta automáticamente el servicio de documentos PDF para determinar si cada presupuesto tiene un PDF asociado, usando llamadas internas al endpoint `/api/v1/documentos-pdf/get`.
+**Todos los endpoints requieren autenticación JWT.**
+
+- **GET** `/indicadores` - Totales de órdenes
+- **GET** `/pendientes` - Lista órdenes pendientes
+  - **Filtro correcto:** `ocp_A1_Ap=0 AND ocp_A4_Ap=1 AND ocp_pdt IN ('T','I','N')`
+  - ⚠️ **NO usar** `ocp_A2_Ap=0` para pendientes — el campo de aprobación gerencial es `ocp_A4_Ap`
+  - Campo `tienepdf`: 0=no existe, 1=tiene PDF, 2=existe sin contenido
+  - Campo `loc_des`: nombre de sucursal (JOIN con tabla `loc001`)
+  - Límite: 5000 registros
+- **GET** `/aprobadas` - Órdenes aprobadas (ocp_A2_Ap=1)
+- **POST** `/aprobar` - Aprueba orden (ocp_A2_Ap=1)
+- **POST** `/desaprobar` - Deshace aprobación
+
+### 🏢 Sucursales (tabla `loc001`)
+
+La tabla `loc001` contiene las sucursales/locales activos:
+```sql
+SELECT Loc_des, loc_cod, loc_est FROM loc001 WHERE loc_est = 0;
+```
+El campo `loc_des` se incluye en los responses de pendientes para que el frontend pueda mostrar un combo de filtro por sucursal cuando hay más de una con órdenes/presupuestos pendientes.
+
+**Paginación:** Todos los endpoints de lista soportan `skip` y `limit` (max 5000)
+
+**Integración PDF:** Los endpoints `/pendientes` consultan automáticamente `lexascl_reppdf.pdf001` para determinar si existe PDF asociado.
 
 ---
 
@@ -393,10 +443,18 @@ pip uninstall -y pydantic pydantic-settings pydantic-core fastapi
 pip install -r requirements.txt
 ```
 
-### Conexión a MySQL falla
-- Verificar que el servidor permite conexiones remotas
-- Validar credenciales en `.env`
-- Verificar firewall/puerto 3306
+### Conexión a MySQL falla (Access Denied)
+- El error incluye la IP de origen: `Access denied for user 'x'@'IP'`
+- Esa IP debe tener `GRANT` en el servidor MySQL
+- **Desarrollo local:** Docker usa IP `45.237.132.130` (no la IP pública de tu máquina)
+- **Producción:** VPS usa IP `168.231.96.205`
+- Para verificar TCP: `docker exec mcn_aprobaciones_backend python -c "import socket; s=socket.create_connection(('HOST', 3306), 5); print('OK')"`
+- Si TCP llega pero hay Access Denied → problema de permisos MySQL, no de red
+
+### 403 Forbidden en endpoints protegidos
+- Causado por `HTTPBearer(auto_error=True)` (default) que retorna 403 cuando no hay token
+- Solución: usar `HTTPBearer(auto_error=False)` y manejar `credentials=None` con 401 manual
+- Ver `app/core/deps.py`
 
 ### API no responde (nginx 502/504)
 - ✅ **Verificar red:** `docker network inspect general-net`

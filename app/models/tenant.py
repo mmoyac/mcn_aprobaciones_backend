@@ -12,6 +12,7 @@ class Tenant(Base):
     nombre = Column(String(200), nullable=False)
     dominio = Column(String(200), unique=True, nullable=False, index=True)
     tema_id = Column(Integer, ForeignKey("tenant_temas.id"), nullable=False)
+    logo_url = Column(String(500), nullable=True)
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 

@@ -20,13 +20,13 @@ class TenantTemaResponse(BaseModel):
     color_background: str
     color_surface: str
     color_text: str
-    logo_url: Optional[str]
 
 
 class TenantConfigResponse(BaseModel):
     slug: str
     nombre: str
     dominio: str
+    logo_url: Optional[str]
     tema: TenantTemaResponse
 
 
@@ -58,13 +58,13 @@ def get_tenant_config(request: Request) -> TenantConfigResponse:
         slug=tenant.slug,
         nombre=tenant.nombre,
         dominio=tenant.dominio,
+        logo_url=tenant.logo_url,
         tema=TenantTemaResponse(
             color_primary=tenant.tema.color_primary,
             color_secondary=tenant.tema.color_secondary,
             color_background=tenant.tema.color_background,
             color_surface=tenant.tema.color_surface,
             color_text=tenant.tema.color_text,
-            logo_url=tenant.tema.logo_url,
         )
     )
 
