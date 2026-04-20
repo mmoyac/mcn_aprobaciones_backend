@@ -30,9 +30,22 @@ class ItemPresupuesto(BaseModel):
     costos: List[CostoItem] = []
 
 
+class AprobacionPresupuesto(BaseModel):
+    pre_vblibusu: Optional[str] = None
+    pre_vblibdt: Optional[date] = None
+    pre_vblibtime: Optional[str] = None
+    pre_vbusu: Optional[str] = None
+    pre_vbfec: Optional[date] = None
+    pre_vbtime: Optional[str] = None
+    pre_vbggusu: Optional[str] = None
+    pre_vbggdt: Optional[date] = None
+    pre_vbggtime: Optional[str] = None
+
+
 class DetallePresupuesto(BaseModel):
     loc_cod: int
     pre_nro: int
+    aprobaciones: AprobacionPresupuesto = AprobacionPresupuesto()
     items: List[ItemPresupuesto] = []
 
 

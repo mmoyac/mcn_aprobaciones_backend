@@ -332,6 +332,7 @@ async def obtener_detalle_presupuesto(
 )
 async def aprobar_presupuesto(
     data: PresupuestoAprobar,
+    request: Request,
     db: Session = Depends(get_tenant_db),
     usuario: str = Depends(get_current_user_id)
 ) -> PresupuestoAprobadoResponse:
@@ -358,11 +359,14 @@ async def aprobar_presupuesto(
         }
     """
     try:
+        tenant = getattr(request.state, 'tenant', None)
+        tenant_id = tenant.id if tenant else 1
         resultado = PresupuestoService.aprobar_presupuesto(
             db,
             loc_cod=data.Loc_cod,
             pre_nro=data.pre_nro,
-            usuario=usuario
+            usuario=usuario,
+            tenant_id=tenant_id
         )
         
         return PresupuestoAprobadoResponse(

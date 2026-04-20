@@ -37,6 +37,36 @@ class OrdenCompraDetalle(OrdenCompraBase):
     class Config:
         from_attributes = True
 
+# Esquema de aprobaciones para página de detalle
+class AprobacionOrdenCompra(BaseModel):
+    ocp_a4usu: Optional[str] = None
+    ocp_a4_dt: Optional[date] = None
+    ocp_a4_hr: Optional[str] = None
+    ocp_a3usu: Optional[str] = None
+    ocp_a3_dt: Optional[date] = None
+    ocp_a3_hr: Optional[str] = None
+    ocp_a2usu: Optional[str] = None
+    ocp_a2_dt: Optional[date] = None
+    ocp_a2_hr: Optional[str] = None
+    ocp_a1usu: Optional[str] = None
+    ocp_a1_dt: Optional[date] = None
+    ocp_a1_hr: Optional[str] = None
+
+class DetalleOrdenCompra(BaseModel):
+    Loc_cod: int
+    ocp_nro: int
+    ocp_fec: Optional[date] = None
+    ocp_fee: Optional[date] = None
+    pro_rut: int
+    proveedor_nombre: str
+    ocp_pdt: str
+    ocp_net: int
+    ocp_iva: int
+    ocp_ila: int
+    monto_total: int
+    loc_des: Optional[str] = None
+    aprobaciones: AprobacionOrdenCompra = AprobacionOrdenCompra()
+
 # Esquema para acción de aprobar/desaprobar
 class OrdenCompraAprobar(BaseModel):
     Loc_cod: int

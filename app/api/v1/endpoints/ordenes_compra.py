@@ -8,7 +8,8 @@ from app.schemas.orden_compra import (
     OrdenCompraDetalle,
     OrdenCompraIndicadores,
     OrdenCompraAprobar,
-    OrdenCompraAprobadoResponse
+    OrdenCompraAprobadoResponse,
+    DetalleOrdenCompra
 )
 from app.services.orden_compra_service import OrdenCompraService
 
@@ -70,9 +71,24 @@ async def obtener_aprobadas(
         tenant_id=tenant_id
     )
 
+@router.get("/{loc_cod}/{ocp_nro}/detalle", response_model=DetalleOrdenCompra)
+async def obtener_detalle_orden(
+    loc_cod: int,
+    ocp_nro: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: str = Depends(get_current_user_id)
+) -> DetalleOrdenCompra:
+    service = OrdenCompraService()
+    result = service.obtener_detalle(db, loc_cod, ocp_nro)
+    if not result:
+        raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
+    return result
+
+
 @router.post("/aprobar", response_model=OrdenCompraAprobadoResponse)
 def aprobar_orden(
     orden_in: OrdenCompraAprobar,
+    request: Request,
     db: Session = Depends(get_tenant_db),
     current_user: str = Depends(get_current_user_id)
 ) -> Any:
@@ -80,11 +96,14 @@ def aprobar_orden(
     Aprobar una orden de compra (nivel 2 - aprobación final).
     """
     service = OrdenCompraService()
+    tenant = getattr(request.state, 'tenant', None)
+    tenant_id = tenant.id if tenant else 1
     orden = service.aprobar_orden(
-        db, 
-        orden_in.ocp_nro, 
-        orden_in.Loc_cod, 
-        current_user
+        db,
+        orden_in.ocp_nro,
+        orden_in.Loc_cod,
+        current_user,
+        tenant_id=tenant_id
     )
     
     if not orden:

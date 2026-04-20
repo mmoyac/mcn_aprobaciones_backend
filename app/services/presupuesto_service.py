@@ -3,14 +3,14 @@ Servicio de lógica de negocio para presupuestos
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, text
-from datetime import datetime
+from datetime import datetime, date
 import pytz
 import os
 from typing import List, Dict, Any
 from app.models.presupuesto import Presupuesto
 from app.models.usuario import Usuario
 from app.schemas.presupuesto import PresupuestoIndicadores
-from app.schemas.presupuesto_detalle import DetallePresupuesto, ItemPresupuesto, CostoItem, PresupuestoHistorico
+from app.schemas.presupuesto_detalle import DetallePresupuesto, ItemPresupuesto, CostoItem, PresupuestoHistorico, AprobacionPresupuesto
 from app.db.tenant_session import create_tenant_session
 
 
@@ -82,36 +82,40 @@ class PresupuestoService:
         """
         if not items:
             return {}
+        import logging
+        _log = logging.getLogger(__name__)
         db_cliente = PresupuestoService._get_reppdf_session()
         if not db_cliente:
+            _log.error("_verificar_pdfs_batch: no REPPDF session (env vars REPPDF_USER/REPPDF_PASSWORD no configuradas)")
             return {}
         try:
-            # Construir lista de (loc_cod, numero) para la query
             pairs = [(loc_cod, numero) for loc_cod, numero in items]
             numeros = [p[1] for p in pairs]
+            _log.info(f"_verificar_pdfs_batch: tenant_id={tenant_id}, tipo={tipo}, numeros={numeros}")
+            in_clause = ",".join(str(n) for n in numeros)
             result = db_cliente.execute(
-                text("""
+                text(f"""
                     SELECT PdfLocCod, PdfNumero, LENGTH(PdfBlob) as blob_size
                     FROM pdf001
                     WHERE PdfEmpCd = :emp_cd
                       AND PdfTipo   = :tipo
-                      AND PdfNumero IN :numeros
+                      AND PdfNumero IN ({in_clause})
                 """),
-                {"emp_cd": tenant_id, "tipo": tipo, "numeros": tuple(numeros)}
+                {"emp_cd": tenant_id, "tipo": tipo}
             )
             rows = result.fetchall()
-            # Construir dict con resultado
+            _log.info(f"_verificar_pdfs_batch: {len(rows)} filas encontradas: {[(r[0], r[1], r[2]) for r in rows]}")
             pdf_map = {}
             for row in rows:
-                key = (row[0], row[1])  # (loc_cod, numero)
+                key = (row[0], row[1])
                 blob_size = row[2] or 0
                 pdf_map[key] = 1 if blob_size > 0 else 2
-            # Los que no aparecieron = 0
             for loc_cod, numero in pairs:
                 if (loc_cod, numero) not in pdf_map:
                     pdf_map[(loc_cod, numero)] = 0
             return pdf_map
-        except Exception:
+        except Exception as e:
+            _log.error(f"_verificar_pdfs_batch error: {e}", exc_info=True)
             return {}
         finally:
             db_cliente.close()
@@ -124,6 +128,32 @@ class PresupuestoService:
         """
         result = PresupuestoService._verificar_pdfs_batch([(loc_cod, numero)], tenant_id, 1)
         return result.get((loc_cod, numero), 0)
+
+    @staticmethod
+    def _eliminar_pdf_reppdf(loc_cod: int, pre_nro: int, tenant_id: int) -> None:
+        """Elimina el PDF de pdf001 en REPPDF al aprobar un presupuesto. Falla silenciosamente."""
+        import logging
+        _log = logging.getLogger(__name__)
+        db_cliente = PresupuestoService._get_reppdf_session()
+        if not db_cliente:
+            return
+        try:
+            result = db_cliente.execute(
+                text("""
+                    DELETE FROM pdf001
+                    WHERE PdfEmpCd = :emp_cd
+                      AND PdfTipo   = 1
+                      AND PdfLocCod = :loc_cod
+                      AND PdfNumero = :numero
+                """),
+                {"emp_cd": tenant_id, "loc_cod": loc_cod, "numero": pre_nro}
+            )
+            db_cliente.commit()
+            _log.info(f"PDF eliminado de REPPDF: tenant={tenant_id}, loc_cod={loc_cod}, pre_nro={pre_nro}, filas={result.rowcount}")
+        except Exception as e:
+            _log.error(f"Error al eliminar PDF de REPPDF: {e}", exc_info=True)
+        finally:
+            db_cliente.close()
 
     @staticmethod
     def obtener_presupuestos_pendientes(
@@ -191,7 +221,8 @@ class PresupuestoService:
         db: Session,
         loc_cod: int,
         pre_nro: int,
-        usuario: str
+        usuario: str,
+        tenant_id: int = 1
     ) -> dict:
         """
         Aprueba un presupuesto actualizando sus campos de aprobación.
@@ -239,7 +270,10 @@ class PresupuestoService:
         # Guardar cambios
         db.commit()
         db.refresh(presupuesto)
-        
+
+        # Eliminar PDF de REPPDF si existe
+        PresupuestoService._eliminar_pdf_reppdf(loc_cod, pre_nro, tenant_id)
+
         return {
             "Loc_cod": presupuesto.Loc_cod,
             "pre_nro": presupuesto.pre_nro,
@@ -321,6 +355,38 @@ class PresupuestoService:
             6: "Descuento"
         }
 
+        # Query 0: datos de aprobaciones del presupuesto (cabecera cot013)
+        aprobacion_row = db.execute(
+            text("""
+                SELECT Pre_VbLibUsu, Pre_VBLibDt, Pre_VbLibTime,
+                       pre_VbUsu, pre_VbFec, pre_VbTime,
+                       pre_vbggUsu, pre_vbggDt, pre_vbggTime
+                FROM cot013
+                WHERE Loc_cod = :loc_cod AND pre_nro = :pre_nro
+            """),
+            {"loc_cod": loc_cod, "pre_nro": pre_nro}
+        ).fetchone()
+
+        from datetime import date as date_type
+        def _fecha(val) -> date_type | None:
+            if not val:
+                return None
+            if isinstance(val, date_type) and val.year < 1900:
+                return None
+            return val
+
+        aprobaciones = AprobacionPresupuesto(
+            pre_vblibusu=aprobacion_row[0].strip() or None if aprobacion_row and aprobacion_row[0] else None,
+            pre_vblibdt=_fecha(aprobacion_row[1]) if aprobacion_row else None,
+            pre_vblibtime=aprobacion_row[2].strip() or None if aprobacion_row and aprobacion_row[2] else None,
+            pre_vbusu=aprobacion_row[3].strip() or None if aprobacion_row and aprobacion_row[3] else None,
+            pre_vbfec=_fecha(aprobacion_row[4]) if aprobacion_row else None,
+            pre_vbtime=aprobacion_row[5].strip() or None if aprobacion_row and aprobacion_row[5] else None,
+            pre_vbggusu=aprobacion_row[6].strip() or None if aprobacion_row and aprobacion_row[6] else None,
+            pre_vbggdt=_fecha(aprobacion_row[7]) if aprobacion_row else None,
+            pre_vbggtime=aprobacion_row[8].strip() or None if aprobacion_row and aprobacion_row[8] else None,
+        ) if aprobacion_row else AprobacionPresupuesto()
+
         # Query 1: todos los ítems del presupuesto
         items_result = db.execute(
             text("""
@@ -376,7 +442,7 @@ class PresupuestoService:
                 costos=costos_por_item.get(lin, [])
             ))
 
-        return DetallePresupuesto(loc_cod=loc_cod, pre_nro=pre_nro, items=items)
+        return DetallePresupuesto(loc_cod=loc_cod, pre_nro=pre_nro, aprobaciones=aprobaciones, items=items)
 
     @staticmethod
     def anular_presupuesto(
@@ -451,7 +517,7 @@ class PresupuestoService:
         
         # Para la fecha, al ser NOT NULL y date, debemos buscar un valor seguro.
         # Usaremos la fecha del presupuesto para mantener consistencia temporal mínima.
-        presupuesto.pre_vbggDt = presupuesto.pre_fec
+        presupuesto.pre_vbggDt = date(1000, 1, 1)
         
         # Guardar cambios
         db.commit()

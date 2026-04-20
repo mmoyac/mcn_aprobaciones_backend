@@ -8,7 +8,7 @@ import logging
 
 from app.models.orden_compra import OrdenCompra
 from app.models.local import Local
-from app.schemas.orden_compra import OrdenCompraIndicadores, OrdenCompraDetalle
+from app.schemas.orden_compra import OrdenCompraIndicadores, OrdenCompraDetalle, DetalleOrdenCompra, AprobacionOrdenCompra
 from app.db.tenant_session import create_tenant_session
 
 # Configurar logging
@@ -46,15 +46,16 @@ class OrdenCompraService:
             return {}
         try:
             numeros = [numero for _, numero in items]
+            in_clause = ",".join(str(n) for n in numeros)
             result = db_cliente.execute(
-                text("""
+                text(f"""
                     SELECT PdfLocCod, PdfNumero, LENGTH(PdfBlob) as blob_size
                     FROM pdf001
                     WHERE PdfEmpCd = :emp_cd
                       AND PdfTipo   = 2
-                      AND PdfNumero IN :numeros
+                      AND PdfNumero IN ({in_clause})
                 """),
-                {"emp_cd": tenant_id, "numeros": tuple(numeros)}
+                {"emp_cd": tenant_id}
             )
             rows = result.fetchall()
             pdf_map = {}
@@ -69,6 +70,29 @@ class OrdenCompraService:
         except Exception as e:
             logger.error(f"Error en batch PDF query: {str(e)}")
             return {}
+        finally:
+            db_cliente.close()
+
+    def _eliminar_pdf_reppdf(self, loc_cod: int, ocp_nro: int, tenant_id: int) -> None:
+        """Elimina el PDF de pdf001 en REPPDF al aprobar una orden de compra. Falla silenciosamente."""
+        db_cliente = self._get_reppdf_session()
+        if not db_cliente:
+            return
+        try:
+            result = db_cliente.execute(
+                text("""
+                    DELETE FROM pdf001
+                    WHERE PdfEmpCd = :emp_cd
+                      AND PdfTipo   = 2
+                      AND PdfLocCod = :loc_cod
+                      AND PdfNumero = :numero
+                """),
+                {"emp_cd": tenant_id, "loc_cod": loc_cod, "numero": ocp_nro}
+            )
+            db_cliente.commit()
+            logger.info(f"PDF eliminado de REPPDF: tenant={tenant_id}, loc_cod={loc_cod}, ocp_nro={ocp_nro}, filas={result.rowcount}")
+        except Exception as e:
+            logger.error(f"Error al eliminar PDF de REPPDF para orden {ocp_nro}: {e}", exc_info=True)
         finally:
             db_cliente.close()
 
@@ -94,13 +118,13 @@ class OrdenCompraService:
         pendientes = db.query(func.count(OrdenCompra.ocp_nro)).filter(
             and_(
                 OrdenCompra.ocp_A1_Ap == 0,
-                OrdenCompra.ocp_A4_Ap == 1,
+                OrdenCompra.ocp_A2_Ap == 1,
                 OrdenCompra.ocp_pdt.in_(['T', 'I', 'N'])
             )
         ).scalar() or 0
 
         aprobadas = db.query(func.count(OrdenCompra.ocp_nro)).filter(
-            OrdenCompra.ocp_A2_Ap == 1
+            OrdenCompra.ocp_A1_Ap == 1
         ).scalar() or 0
 
         return OrdenCompraIndicadores(
@@ -166,7 +190,7 @@ class OrdenCompraService:
             ).filter(
                 and_(
                     OrdenCompra.ocp_A1_Ap == 0,
-                    OrdenCompra.ocp_A4_Ap == 1,
+                    OrdenCompra.ocp_A2_Ap == 1,
                     OrdenCompra.ocp_pdt.in_(['T', 'I', 'N'])
                 )
             ).order_by(OrdenCompra.ocp_fec.desc()).offset(skip).limit(limit).all()
@@ -220,23 +244,23 @@ class OrdenCompraService:
         """
         try:
             # Construir filtros base
-            filters = [OrdenCompra.ocp_A2_Ap == 1]
-            
+            filters = [OrdenCompra.ocp_A1_Ap == 1]
+
             # Si no hay usuario específico, mostrar solo las de hoy
             if user_id is None:
                 hoy_chile = datetime.now(chile_tz).date()
-                filters.append(OrdenCompra.ocp_A2_Dt == hoy_chile)
+                filters.append(OrdenCompra.ocp_A1_Dt == hoy_chile)
             else:
                 # Filtrar por usuario y fechas
-                filters.append(func.lower(OrdenCompra.ocp_A2_Usu) == func.lower(user_id))
+                filters.append(func.lower(OrdenCompra.ocp_A1_Usu) == func.lower(user_id))
                 if fecha_desde:
-                    filters.append(OrdenCompra.ocp_A2_Dt >= fecha_desde)
+                    filters.append(OrdenCompra.ocp_A1_Dt >= fecha_desde)
                 if fecha_hasta:
-                    filters.append(OrdenCompra.ocp_A2_Dt <= fecha_hasta)
+                    filters.append(OrdenCompra.ocp_A1_Dt <= fecha_hasta)
 
             ordenes = db.query(OrdenCompra).filter(
                 and_(*filters)
-            ).order_by(OrdenCompra.ocp_A2_Dt.desc(), OrdenCompra.ocp_A2_Hr.desc()).offset(skip).limit(limit).all()
+            ).order_by(OrdenCompra.ocp_A1_Dt.desc(), OrdenCompra.ocp_A1_Hr.desc()).offset(skip).limit(limit).all()
 
             # Batch query: una sola consulta para todos los PDFs
             items = [(o.Loc_cod, o.ocp_nro) for o in ordenes]
@@ -262,9 +286,9 @@ class OrdenCompraService:
                     proveedor_nombre=orden.proveedor_nombre,
                     monto_total=orden.monto_total,
                     tienepdf=tiene_pdf,
-                    ocp_A2_Usu=orden.ocp_A2_Usu,
-                    ocp_A2_Dt=orden.ocp_A2_Dt,
-                    ocp_A2_Hr=orden.ocp_A2_Hr
+                    ocp_A2_Usu=orden.ocp_A1_Usu,
+                    ocp_A2_Dt=orden.ocp_A1_Dt,
+                    ocp_A2_Hr=orden.ocp_A1_Hr
                 )
                 ordenes_detalle.append(orden_detalle)
 
@@ -274,7 +298,57 @@ class OrdenCompraService:
             logger.error(f"Error obteniendo órdenes aprobadas: {str(e)}")
             raise
 
-    def aprobar_orden(self, db: Session, ocp_nro: int, loc_cod: int, user_id: str) -> Optional[OrdenCompra]:
+    def obtener_detalle(self, db: Session, loc_cod: int, ocp_nro: int) -> Optional[DetalleOrdenCompra]:
+        def _fecha(val):
+            if not val:
+                return None
+            if isinstance(val, date) and val.year < 1900:
+                return None
+            return val
+
+        def _str(val):
+            return val.strip() or None if val else None
+
+        orden = db.query(OrdenCompra, Local.Loc_des).outerjoin(
+            Local, OrdenCompra.Loc_cod == Local.Loc_cod
+        ).filter(
+            and_(OrdenCompra.Loc_cod == loc_cod, OrdenCompra.ocp_nro == ocp_nro)
+        ).first()
+
+        if not orden:
+            return None
+
+        oc, loc_des = orden
+        return DetalleOrdenCompra(
+            Loc_cod=oc.Loc_cod,
+            ocp_nro=oc.ocp_nro,
+            ocp_fec=oc.ocp_fec,
+            ocp_fee=oc.ocp_fee,
+            pro_rut=oc.pro_rut,
+            proveedor_nombre=oc.proveedor_nombre,
+            ocp_pdt=oc.ocp_pdt,
+            ocp_net=oc.ocp_net,
+            ocp_iva=oc.ocp_iva,
+            ocp_ila=oc.ocp_ila,
+            monto_total=oc.monto_total,
+            loc_des=loc_des,
+            aprobaciones=AprobacionOrdenCompra(
+                ocp_a4usu=_str(oc.ocp_A4_Usu),
+                ocp_a4_dt=_fecha(oc.ocp_A4_Dt),
+                ocp_a4_hr=_str(oc.ocp_A4_Hr),
+                ocp_a3usu=_str(oc.ocp_A3_Usu),
+                ocp_a3_dt=_fecha(oc.ocp_A3_Dt),
+                ocp_a3_hr=_str(oc.ocp_A3_Hr),
+                ocp_a2usu=_str(oc.ocp_A2_Usu),
+                ocp_a2_dt=_fecha(oc.ocp_A2_Dt),
+                ocp_a2_hr=_str(oc.ocp_A2_Hr),
+                ocp_a1usu=_str(oc.ocp_A1_Usu),
+                ocp_a1_dt=_fecha(oc.ocp_A1_Dt),
+                ocp_a1_hr=_str(oc.ocp_A1_Hr),
+            )
+        )
+
+    def aprobar_orden(self, db: Session, ocp_nro: int, loc_cod: int, user_id: str, tenant_id: int = 1) -> Optional[OrdenCompra]:
         """
         Aprueba una orden de compra (nivel 2 - equivalente a pre_vbgg)
         """
@@ -288,15 +362,17 @@ class OrdenCompraService:
         if not orden:
             return None
 
-        # Actualizar campos de aprobación nivel 2 (final)
         now_chile = datetime.now(chile_tz)
-        orden.ocp_A2_Ap = 1
-        orden.ocp_A2_Usu = user_id
-        orden.ocp_A2_Dt = now_chile.date()
-        orden.ocp_A2_Hr = now_chile.strftime("%H:%M:%S")
+        orden.ocp_A1_Ap = 1
+        orden.ocp_A1_Usu = user_id
+        orden.ocp_A1_Dt = now_chile.date()
+        orden.ocp_A1_Hr = now_chile.strftime("%H:%M:%S")
 
         db.commit()
         db.refresh(orden)
+
+        self._eliminar_pdf_reppdf(loc_cod, ocp_nro, tenant_id)
+
         return orden
 
     def anular_orden(self, db: Session, ocp_nro: int, loc_cod: int) -> Optional[OrdenCompra]:
@@ -333,12 +409,10 @@ class OrdenCompraService:
         if not orden:
             return None
 
-        # Reset campos de aprobación nivel 2
-        # Mantener integridad con campos NOT NULL
-        orden.ocp_A2_Ap = 0
-        orden.ocp_A2_Usu = ''
-        orden.ocp_A2_Dt = orden.ocp_fec  # Fecha fallback
-        orden.ocp_A2_Hr = ''
+        orden.ocp_A1_Ap = 0
+        orden.ocp_A1_Usu = ''
+        orden.ocp_A1_Dt = date(1000, 1, 1)
+        orden.ocp_A1_Hr = ''
 
         db.commit()
         db.refresh(orden)
