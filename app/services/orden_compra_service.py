@@ -8,7 +8,7 @@ import logging
 
 from app.models.orden_compra import OrdenCompra
 from app.models.local import Local
-from app.schemas.orden_compra import OrdenCompraIndicadores, OrdenCompraDetalle, DetalleOrdenCompra, AprobacionOrdenCompra
+from app.schemas.orden_compra import OrdenCompraIndicadores, OrdenCompraDetalle, DetalleOrdenCompra, AprobacionOrdenCompra, ItemOrdenCompra
 from app.db.tenant_session import create_tenant_session
 
 # Configurar logging
@@ -347,6 +347,37 @@ class OrdenCompraService:
                 ocp_a1_hr=_str(oc.ocp_A1_Hr),
             )
         )
+
+    def obtener_items(self, db: Session, loc_cod: int, ocp_nro: int) -> List[ItemOrdenCompra]:
+        result = db.execute(
+            text("""
+                SELECT Loc_cod, ocp_nro, ocp_lin, ocp_mat, mat_des,
+                       Ocp_Odt, Ocp_De1, Ocp_De2, Ocp_De3, Ocp_est, Ocp_can, Ocp_pre
+                FROM adq005
+                INNER JOIN COT012 ON ocp_mat = mat_cod
+                WHERE ocp_nro = :ocp_nro AND loc_cod = :loc_cod
+                ORDER BY ocp_lin
+            """),
+            {"ocp_nro": ocp_nro, "loc_cod": loc_cod}
+        )
+        rows = result.fetchall()
+        return [
+            ItemOrdenCompra(
+                Loc_cod=row[0],
+                ocp_nro=row[1],
+                ocp_lin=row[2],
+                ocp_mat=row[3].strip() if row[3] else None,
+                mat_des=row[4].strip() if row[4] else None,
+                Ocp_Odt=row[5],
+                Ocp_De1=row[6].strip() if row[6] else None,
+                Ocp_De2=row[7].strip() if row[7] else None,
+                Ocp_De3=row[8].strip() if row[8] else None,
+                Ocp_est=row[9].strip() if row[9] else None,
+                Ocp_can=float(row[10]) if row[10] is not None else None,
+                Ocp_pre=int(row[11]) if row[11] is not None else None,
+            )
+            for row in rows
+        ]
 
     def aprobar_orden(self, db: Session, ocp_nro: int, loc_cod: int, user_id: str, tenant_id: int = 1) -> Optional[OrdenCompra]:
         """

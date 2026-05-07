@@ -9,7 +9,8 @@ from app.schemas.orden_compra import (
     OrdenCompraIndicadores,
     OrdenCompraAprobar,
     OrdenCompraAprobadoResponse,
-    DetalleOrdenCompra
+    DetalleOrdenCompra,
+    ItemOrdenCompra
 )
 from app.services.orden_compra_service import OrdenCompraService
 
@@ -70,6 +71,17 @@ async def obtener_aprobadas(
         limit=limit,
         tenant_id=tenant_id
     )
+
+@router.get("/{loc_cod}/{ocp_nro}/items", response_model=List[ItemOrdenCompra])
+def obtener_items_orden(
+    loc_cod: int,
+    ocp_nro: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: str = Depends(get_current_user_id)
+) -> List[ItemOrdenCompra]:
+    service = OrdenCompraService()
+    return service.obtener_items(db, loc_cod, ocp_nro)
+
 
 @router.get("/{loc_cod}/{ocp_nro}/detalle", response_model=DetalleOrdenCompra)
 async def obtener_detalle_orden(

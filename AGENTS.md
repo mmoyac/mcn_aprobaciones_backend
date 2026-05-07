@@ -204,11 +204,12 @@ Se ejecuta manualmente (workflow_dispatch) o en tags de versión (v*):
 
 **Para desplegar nueva versión:**
 ```bash
-# Crear tag de versión
-git tag -a v1.2.0 -m "Descripción de cambios"
-git push origin v1.2.0
+# Hacer cambios en el código
+git add .
+git commit -m "feat: descripción de cambios"
+git push origin main
 
-# O ejecutar manualmente desde GitHub Actions UI
+# El workflow se ejecuta automáticamente al hacer push a main
 # https://github.com/mmoyac/mcn_aprobaciones_backend/actions/workflows/docker-publish.yml
 ```
 
@@ -473,7 +474,6 @@ El proyecto usa `unpkg.com` en lugar de `jsdelivr` para evitar bloqueos de track
 
 ### Deploy no actualiza contenedor en VPS
 - El workflow incluye `--force-recreate` para asegurar actualización
-- Verificar que el tag de versión se creó correctamente
 - Logs del workflow en: https://github.com/mmoyac/mcn_aprobaciones_backend/actions
 
 ---

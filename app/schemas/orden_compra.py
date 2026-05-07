@@ -76,3 +76,17 @@ class OrdenCompraAprobadoResponse(BaseModel):
     message: str
     ocp_nro: int
     new_status: str
+
+class ItemOrdenCompra(BaseModel):
+    Loc_cod: int
+    ocp_nro: int
+    ocp_lin: int
+    ocp_mat: Optional[str] = None
+    mat_des: Optional[str] = None
+    Ocp_Odt: Optional[int] = None
+    Ocp_De1: Optional[str] = None
+    Ocp_De2: Optional[str] = None
+    Ocp_De3: Optional[str] = None
+    Ocp_est: Optional[str] = None
+    Ocp_can: Optional[float] = None
+    Ocp_pre: Optional[int] = None
