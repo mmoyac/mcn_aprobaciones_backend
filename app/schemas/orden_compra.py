@@ -29,10 +29,17 @@ class OrdenCompraDetalle(OrdenCompraBase):
     tienepdf: Optional[int] = Field(None, description="0=no existe, 1=tiene PDF, 2=existe sin contenido", ge=0, le=2)
     loc_des: Optional[str] = None
 
-    # Datos de aprobación (para la pestaña de aprobados)
+    # Flujo de aprobaciones para lista
+    ocp_A4_Ap: int = Field(0, description="VB Técnico (1=aprobado)")
+    ocp_A4_Usu: Optional[str] = None
+    ocp_A3_Anu: int = Field(0, description="VB Contabilidad (1=aprobado)")
+    ocp_A3_Usu: Optional[str] = None
+    ocp_A2_Ap: int = Field(0, description="VB Operaciones (1=aprobado)")
     ocp_A2_Usu: Optional[str] = None
     ocp_A2_Dt: Optional[date] = None
     ocp_A2_Hr: Optional[str] = None
+    ocp_A1_Ap: int = Field(0, description="VB Gerente Gral (1=aprobado)")
+    ocp_A1_Usu: Optional[str] = None
 
     class Config:
         from_attributes = True

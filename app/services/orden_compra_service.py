@@ -217,7 +217,15 @@ class OrdenCompraService:
                     proveedor_nombre=orden.proveedor_nombre,
                     monto_total=orden.monto_total,
                     tienepdf=tiene_pdf,
-                    loc_des=loc_des
+                    loc_des=loc_des,
+                    ocp_A4_Ap=orden.ocp_A4_Ap or 0,
+                    ocp_A4_Usu=(orden.ocp_A4_Usu or '').strip() or None,
+                    ocp_A3_Anu=orden.ocp_A3_Anu or 0,
+                    ocp_A3_Usu=(orden.ocp_A3_Usu or '').strip() or None,
+                    ocp_A2_Ap=orden.ocp_A2_Ap or 0,
+                    ocp_A2_Usu=(orden.ocp_A2_Usu or '').strip() or None,
+                    ocp_A1_Ap=orden.ocp_A1_Ap or 0,
+                    ocp_A1_Usu=(orden.ocp_A1_Usu or '').strip() or None,
                 )
                 ordenes_detalle.append(orden_detalle)
 
@@ -286,9 +294,16 @@ class OrdenCompraService:
                     proveedor_nombre=orden.proveedor_nombre,
                     monto_total=orden.monto_total,
                     tienepdf=tiene_pdf,
-                    ocp_A2_Usu=orden.ocp_A1_Usu,
+                    ocp_A4_Ap=orden.ocp_A4_Ap or 0,
+                    ocp_A4_Usu=(orden.ocp_A4_Usu or '').strip() or None,
+                    ocp_A3_Anu=orden.ocp_A3_Anu or 0,
+                    ocp_A3_Usu=(orden.ocp_A3_Usu or '').strip() or None,
+                    ocp_A2_Ap=orden.ocp_A2_Ap or 0,
+                    ocp_A2_Usu=(orden.ocp_A2_Usu or '').strip() or None,
                     ocp_A2_Dt=orden.ocp_A1_Dt,
-                    ocp_A2_Hr=orden.ocp_A1_Hr
+                    ocp_A2_Hr=(orden.ocp_A1_Hr or '').strip() or None,
+                    ocp_A1_Ap=orden.ocp_A1_Ap or 0,
+                    ocp_A1_Usu=(orden.ocp_A1_Usu or '').strip() or None,
                 )
                 ordenes_detalle.append(orden_detalle)
 

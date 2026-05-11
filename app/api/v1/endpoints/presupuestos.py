@@ -142,6 +142,9 @@ async def listar_presupuestos_pendientes(
                 "pre_fecAdj": presupuesto.pre_fecAdj,
                 "pre_VbLibUsu": presupuesto.Pre_VbLibUsu,
                 "Pre_VBLibDt": presupuesto.Pre_VBLibDt,
+                "pre_vb": presupuesto.pre_vb,
+                "pre_VbUsu": (presupuesto.pre_VbUsu or '').strip() or None,
+                "pre_VbFec": presupuesto.pre_VbFec,
                 "pre_vbggUsu": presupuesto.pre_vbggUsu,
                 "pre_vbggDt": presupuesto.pre_vbggDt,
                 "pre_trnFec": presupuesto.pre_trnFec,
@@ -250,12 +253,13 @@ async def listar_presupuestos_aprobados(
                 "pre_fecAdj": presupuesto.pre_fecAdj,
                 "pre_VbLibUsu": presupuesto.Pre_VbLibUsu,
                 "Pre_VBLibDt": presupuesto.Pre_VBLibDt,
+                "pre_vb": presupuesto.pre_vb,
+                "pre_VbUsu": (presupuesto.pre_VbUsu or '').strip() or None,
+                "pre_VbFec": presupuesto.pre_VbFec,
                 "pre_vbggUsu": presupuesto.pre_vbggUsu,
                 "pre_vbggDt": presupuesto.pre_vbggDt,
                 "pre_trnFec": presupuesto.pre_trnFec,
                 "pre_trnusu": presupuesto.pre_trnusu,
-                
-                # Campo nuevo con PDF
                 "tienepdf": tienepdf
             }
 
