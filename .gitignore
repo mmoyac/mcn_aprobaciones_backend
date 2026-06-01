@@ -80,3 +80,6 @@ htmlcov/
 .tox/
 
 
+
+# Configuración local del agente Claude Code
+.claude/
