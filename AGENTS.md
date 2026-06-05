@@ -44,6 +44,7 @@ Las credenciales de cada tenant están almacenadas en la tabla `tenant_conexione
 | **gontec** | `179.27.210.204:3306` | `lexascl_gontec` | `lexasdulce` |
 | **mgamaq** | `179.27.152.194:3306` | `lexascl_mgamaq` | `lexascl_mgaadm` |
 | **mgacom** | `179.27.152.194:3306` | `lexascl_mgacom` | `lexascl_mgaadm` |
+| **mcn** | `179.27.152.194:3306` | `lexascl_mcn` | `lexascl_mcn` |
 
 * **Versión MySQL:** 5.7.7 - 5.7.23
 
@@ -85,6 +86,7 @@ El frontend en desarrollo corre en el puerto `3000` con subdominios por tenant:
 | **gontec** | http://gontec.localhost:3000/ | http://aprobaciones-gontec.lexastech.cl/ |
 | **mgacom** | http://mgacom.localhost:3000/ | https://aprobaciones-mgacom.lexastech.cl/ ✅ operativo (presupuestos pendiente de ajuste de BD del cliente — ver [docs/COMPATIBILIDAD_BD_MGACOM.md](docs/COMPATIBILIDAD_BD_MGACOM.md)) |
 | **mgamaq** | http://mgamaq.localhost:3000/ | https://aprobaciones-mgamaq.lexastech.cl/ ✅ operativo (presupuestos pendiente de ajuste de BD del cliente — ver [docs/COMPATIBILIDAD_BD_MAQUINARIA.md](docs/COMPATIBILIDAD_BD_MAQUINARIA.md)) |
+| **mcn** | http://mcn.localhost:3000/ | https://aprobaciones-mcn.lexastech.cl/ ✅ operativo (tema 3; BD propia `lexascl_mcn` — pendiente que el cliente agregue columnas en órdenes (`adq004`/`adq005`) y presupuestos, ver [docs/COMPATIBILIDAD_BD_MCN.md](docs/COMPATIBILIDAD_BD_MCN.md)) |
 
 El backend API en desarrollo se accede en `http://localhost:8050/api/v1` (configurado en `.env.local` del frontend).
 

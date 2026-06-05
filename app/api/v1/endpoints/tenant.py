@@ -7,9 +7,19 @@ from fastapi import APIRouter, Request, HTTPException, status, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, inspect as sa_inspect
 
 from app.core.deps import get_tenant_db
+
+# Modelos de negocio (sus tablas viven en la BD MySQL del tenant / ERP del cliente).
+# Se importan explícitamente para garantizar que estén registrados en el mapper
+# cuando se deriva el schema requerido en /db-check (ver SPEC-001).
+from app.models.orden_compra import OrdenCompra
+from app.models.presupuesto import Presupuesto
+from app.models.cliente import Cliente
+from app.models.proveedor import Proveedor
+from app.models.local import Local
+from app.models.usuario import Usuario
 
 router = APIRouter()
 
@@ -72,22 +82,47 @@ def get_tenant_config(request: Request) -> TenantConfigResponse:
 # ---------------------------------------------------------------------------
 # Schema esperado por la app (tabla → columnas requeridas)
 # ---------------------------------------------------------------------------
-REQUIRED_SCHEMA = {
-    "cot013": [
-        "Loc_cod", "pre_nro", "pre_est", "pre_gl1", "pre_fecAdj", "pre_fec",
-        "pre_rut", "pre_VenCod", "Pre_Neto", "Pre_vbLib", "Pre_VbLibUsu",
-        "Pre_VBLibDt", "pre_vbgg", "pre_vbggUsu", "pre_vbggDt", "pre_vbggTime",
-        "pre_trnFec", "pre_trnusu",
-    ],
-    "clientea": ["Cli_Code", "Cli_Name"],
-    "adq004": [
-        "Loc_cod", "ocp_nro", "ocp_fec", "pro_rut", "ocp_net", "ocp_pdt",
-        "ocp_A1_Ap", "ocp_A1_Usu", "ocp_A1_Dt", "ocp_A1_Hr",
-        "ocp_A2_Ap", "ocp_A2_Usu", "ocp_A2_Dt", "ocp_A2_Hr",
-    ],
-    "proveea": ["pro_rut", "pro_nom"],
-    "ctbm01": ["UserCd", "UserDs", "UserLlave"],
+# Ver SPEC-001 (docs/specs/SPEC-001-deteccion-incompatibilidad-bd.md).
+#
+# Las columnas requeridas se derivan de DOS fuentes para reflejar exactamente
+# lo que la app realmente consulta:
+#   1) BUSINESS_MODELS  → todas las columnas mapeadas por el ORM (el ORM hace
+#      SELECT de todas ellas; cualquiera ausente rompe la query).
+#   2) RAW_SQL_SCHEMA    → tablas que la app consulta con SQL crudo (sin modelo
+#      ORM), por lo que no aparecen vía mapper.
+
+# Modelos cuyas tablas viven en la BD MySQL del tenant (ERP del cliente).
+BUSINESS_MODELS = [OrdenCompra, Presupuesto, Cliente, Proveedor, Local, Usuario]
+
+# Tablas consultadas con SQL crudo (sin modelo ORM). Las columnas se derivan de
+# las queries de los services; actualizar si cambia el SQL referenciado.
+RAW_SQL_SCHEMA = {
+    # ítems de orden de compra — OrdenCompraService.obtener_items (adq005 ⨝ COT012)
+    "adq005": ["Loc_cod", "ocp_nro", "ocp_lin", "ocp_mat", "Ocp_Odt",
+               "Ocp_De1", "Ocp_De2", "Ocp_De3", "Ocp_est", "Ocp_can", "Ocp_pre"],
+    "COT012": ["mat_cod", "mat_des"],
+    # detalle de presupuestos
+    "cot005":  ["loc_cod", "pre_nro", "pre_lin", "pre_des", "pre_de1", "pre_de2",
+                "pre_de3", "pre_de4", "pre_cpr", "pre_pre", "pre_dct"],
+    "cot005l": ["loc_cod", "pre_nro", "pre_lin", "pre_dtlin", "Pre_DtTip",
+                "Pre_DtCant", "Pre_DtPre", "Pre_DtDescrip"],
 }
+
+
+def build_required_schema() -> dict:
+    """
+    Construye {tabla: [columnas requeridas]} combinando las columnas mapeadas por
+    cada modelo de negocio (ORM) con las tablas de SQL crudo. Ver SPEC-001.
+    """
+    schema: dict = {}
+    for model in BUSINESS_MODELS:
+        mapper = sa_inspect(model)
+        schema[mapper.local_table.name] = [col.name for col in mapper.columns]
+    # Las tablas de SQL crudo no deberían colisionar con las del ORM; si lo hicieran,
+    # gana el ORM (más completo) y se ignora la entrada cruda.
+    for tabla, columnas in RAW_SQL_SCHEMA.items():
+        schema.setdefault(tabla, columnas)
+    return schema
 
 
 class TableCheck(BaseModel):
@@ -119,16 +154,23 @@ def check_tenant_db(request: Request, db: Session = Depends(get_tenant_db)) -> D
     db_name = tenant.conexion.db_name
     checks: List[TableCheck] = []
 
-    # Obtener tablas existentes en la BD
-    tablas_existentes = {
-        row[0].lower()
-        for row in db.execute(text("SHOW TABLES")).fetchall()
-    }
+    required_schema = build_required_schema()
 
-    for tabla, columnas_requeridas in REQUIRED_SCHEMA.items():
-        existe = tabla.lower() in tablas_existentes
+    # Traer TODAS las columnas de la BD en una sola consulta (1 viaje a la red en
+    # vez de N `DESCRIBE`). Contra un MySQL remoto cada round-trip cuesta ~40 ms,
+    # así que esto baja el endpoint de ~0.5-1 s a ~0.2 s. Ver SPEC-001.
+    columnas_por_tabla: dict = {}
+    for tname, cname in db.execute(text(
+        "SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS "
+        "WHERE TABLE_SCHEMA = DATABASE()"
+    )).fetchall():
+        columnas_por_tabla.setdefault(tname.lower(), set()).add(cname.lower())
 
-        if not existe:
+    for tabla, columnas_requeridas in required_schema.items():
+        columnas_reales = columnas_por_tabla.get(tabla.lower())
+
+        # Si la tabla no aparece en information_schema, no existe en la BD.
+        if columnas_reales is None:
             checks.append(TableCheck(
                 tabla=tabla,
                 existe=False,
@@ -137,12 +179,6 @@ def check_tenant_db(request: Request, db: Session = Depends(get_tenant_db)) -> D
                 ok=False,
             ))
             continue
-
-        # Obtener columnas reales de la tabla (en minúsculas para comparación case-insensitive)
-        columnas_reales = {
-            row[0].lower()
-            for row in db.execute(text(f"DESCRIBE `{tabla}`")).fetchall()
-        }
 
         faltantes = [c for c in columnas_requeridas if c.lower() not in columnas_reales]
         ok = len(faltantes) == 0

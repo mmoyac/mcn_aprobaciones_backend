@@ -319,7 +319,7 @@ Luego actualizar la tabla de tenants en [AGENTS.md](../AGENTS.md) (URLs por tena
 | 2 | Cloudflare deja el registro **proxied (naranja)** → resuelve a IPs de CF, no al VPS. | Ponerlo **DNS-only (gris)**. Verificar con `@1.1.1.1` (el caché local engaña). |
 | 3 | `certbot` falla con *"Please choose an account"* (hay 2 cuentas ACME). | Pasar `--account 5239744ebdc2bba3102715566dfb64aa`. |
 | 4 | Pegar el conf de nginx completo (heredoc largo / base64) se **corrompe**. | `cp` de un conf existente + `sed` del slug. Verificar con `grep`. |
-| 5 | `/tenant/db-check` dice OK pero presupuestos falla. | El `db-check` valida solo un subconjunto. Usar el script ORM del paso 4 (autoritativo). |
+| 5 | ~~`/tenant/db-check` dice OK pero presupuestos falla.~~ **Resuelto por [SPEC-001](specs/SPEC-001-deteccion-incompatibilidad-bd.md):** el `db-check` ahora deriva las columnas del modelo ORM + tablas de SQL crudo, por lo que es **autoritativo** (equivalente al script del paso 4). El script del paso 4 sigue sirviendo para diagnóstico offline. |
 | 6 | Presupuestos no anda en un tenant pero órdenes sí. | El ERP del cliente tiene schema divergente en `cot013`/`clientea`/`cot005*`. Documentar (paso 8); órdenes funciona igual. |
 | 7 | Warnings `http2 deprecated` / `protocol options redefined` al recargar nginx. | Benignos. Mirar que diga `test is successful`. |
 
