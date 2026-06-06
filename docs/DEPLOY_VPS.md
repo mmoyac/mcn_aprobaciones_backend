@@ -296,6 +296,37 @@ docker logs mcn_backend
 docker exec mcn_backend env | grep DB_
 ```
 
+### Error: `dial tcp ***:*** i/o timeout` en el job `deploy-to-vps` (scp/ssh-action)
+
+El job `build-and-push` **sí** subió la imagen a Docker Hub, pero el job `deploy-to-vps`
+falló al **conectar al VPS** por SCP/SSH (timeout de red entre el runner de GitHub y el
+servidor). El código está en GitHub y la imagen en Docker Hub; **solo faltó copiar/reiniciar
+en el VPS**.
+
+**Causas probables:**
+- Transitorio (lo más común) → **re-ejecutar** el job ("Re-run failed jobs" en Actions).
+- Firewall / fail2ban del VPS bloqueando las IPs (amplias y cambiantes) de los runners de GitHub.
+- Secret `VPS_HOST` / `VPS_PORT` incorrecto (IP o puerto SSH cambiados).
+
+**Solución inmediata — deploy manual desde el VPS** (la imagen ya está en Docker Hub):
+
+```bash
+cd /root/docker/mcn
+docker pull mmoyac/mcn_aprobaciones_backend:latest
+docker compose up -d --force-recreate backend
+```
+
+> ✅ Esto es suficiente cuando el commit **solo cambió código de `app/`** (va dentro de la
+> imagen). Si además cambiaron `docker-compose.prod.yml`, `nginx/`, `.env.production`,
+> `migrate.sh` o `postgres_db.py` (los archivos que el pipeline copia por SCP), hay que
+> actualizarlos a mano en `/root/docker/mcn` antes de recrear.
+
+**Verificar que quedó el código nuevo:**
+```bash
+docker exec -i mcn_backend python -c "import app.main; print('backend OK')"
+curl -s https://api.lexastech.cl/health
+```
+
 ---
 
 ## 📚 Comandos Útiles
