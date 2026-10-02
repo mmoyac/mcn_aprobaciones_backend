@@ -14,7 +14,7 @@ El objetivo es mantener la consistencia en el entorno, el código y la arquitect
 | :--- | :--- | :--- |
 | **Framework** | FastAPI (Python) | Capa de API REST. |
 | **ORM** | SQLAlchemy (Core + ORM) | Mapeo objeto-relacional. |
-| **Base de Datos** | MySQL (v5.7.7 - v5.7.23) | Almacenamiento persistente. |
+| **Base de Datos** | MySQL 5.6.51 en los servidores de los clientes (verificado 2026-09-30) | Almacenamiento persistente. |
 | **Orquestación** | Docker Compose | Entorno de desarrollo aislado. |
 | **CI/CD** | GitHub Actions | Automatización de tests y despliegue. |
 | **Tests** | pytest + httpx | Suite de tests automatizados. |
@@ -46,7 +46,7 @@ Las credenciales de cada tenant están almacenadas en la tabla `tenant_conexione
 | **mgacom** | `179.27.152.194:3306` | `lexascl_mgacom` | `lexascl_mgaadm` |
 | **mcn** | `179.27.152.194:3306` | `lexascl_mcn` | `lexascl_mcn` |
 
-* **Versión MySQL:** 5.7.7 - 5.7.23
+* **Versión MySQL:** 5.6.51, `sql_mode=NO_ENGINE_SUBSTITUTION` (verificado 2026-09-30 en gontec y mcn). Los tests de integración usan la misma versión (`docker-compose.test.yml`).
 
 ⚠️ **IMPORTANTE:** El servidor de mga es `179.27.152.194`, distinto al de gontec (`179.27.210.204`).
 
@@ -86,7 +86,7 @@ El frontend en desarrollo corre en el puerto `3000` con subdominios por tenant:
 | **gontec** | http://gontec.localhost:3000/ | http://aprobaciones-gontec.lexastech.cl/ |
 | **mgacom** | http://mgacom.localhost:3000/ | https://aprobaciones-mgacom.lexastech.cl/ ✅ operativo (presupuestos pendiente de ajuste de BD del cliente — ver [docs/COMPATIBILIDAD_BD_MGACOM.md](docs/COMPATIBILIDAD_BD_MGACOM.md)) |
 | **mgamaq** | http://mgamaq.localhost:3000/ | https://aprobaciones-mgamaq.lexastech.cl/ ✅ operativo (presupuestos pendiente de ajuste de BD del cliente — ver [docs/COMPATIBILIDAD_BD_MAQUINARIA.md](docs/COMPATIBILIDAD_BD_MAQUINARIA.md)) |
-| **mcn** | http://mcn.localhost:3000/ | https://aprobaciones-mcn.lexastech.cl/ ✅ operativo (tema 3; BD propia `lexascl_mcn` — pendiente que el cliente agregue columnas en órdenes (`adq004`/`adq005`) y presupuestos, ver [docs/COMPATIBILIDAD_BD_MCN.md](docs/COMPATIBILIDAD_BD_MCN.md)) |
+| **mcn** | http://mcn.localhost:3000/ | https://aprobaciones-mcn.lexastech.cl/ ✅ operativo (tema 3; BD propia `lexascl_mcn`; columnas ya aplicadas por el cliente; `pre_nro` alfanumérico `char(12)`, ver [docs/COMPATIBILIDAD_BD_MCN.md](docs/COMPATIBILIDAD_BD_MCN.md)) |
 
 El backend API en desarrollo se accede en `http://localhost:8050/api/v1` (configurado en `.env.local` del frontend).
 
@@ -164,6 +164,19 @@ Para despliegue, se utiliza Docker:
 Existe una carpeta **`schema/`** en la raíz del proyecto.
 
 Para el acceso y desarrollo, la definición de las tablas está en `schema/db_tables.sql`
+
+## 🧪 Tests de integración de presupuestos
+
+Corren la API completa contra un MySQL 5.6.51 local con dos esquemas: `t_numerico` (`pre_nro BIGINT`, como gontec/mga/mgacom) y `t_alfanumerico` (`pre_nro CHAR(12)`, como mcn). Incluyen aprobar, anular y desaprobar, sin tocar las BD de los clientes:
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+pytest tests/integration -m integration
+```
+
+- Si el MySQL de prueba no está arriba, los tests se saltan.
+- **Probar el frontend a mano contra esos datos:** `PUERTO=8060 python -m tests.integration.servidor_local` (ver el docstring del script).
+- **Hojas de validación de solo lectura contra prod:** `docker exec -i mcn_backend python - < scripts/datos_validacion.py`.
 
 ---
 

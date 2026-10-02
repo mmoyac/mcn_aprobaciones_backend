@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date
 
+from app.schemas.presupuesto import PreNro
+
 
 class CostoItem(BaseModel):
     pre_lin: int
@@ -44,14 +46,14 @@ class AprobacionPresupuesto(BaseModel):
 
 class DetallePresupuesto(BaseModel):
     loc_cod: int
-    pre_nro: int
+    pre_nro: PreNro
     aprobaciones: AprobacionPresupuesto = AprobacionPresupuesto()
     items: List[ItemPresupuesto] = []
 
 
 class PresupuestoHistorico(BaseModel):
     Loc_cod: int
-    pre_nro: int
+    pre_nro: PreNro
     pre_fec: Optional[date] = None
     pre_rut: Optional[int] = None
     cliente_nombre: Optional[str] = ""

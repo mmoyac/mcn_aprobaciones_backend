@@ -6,6 +6,15 @@
 
 ---
 
+> ### ✅ Actualización 2026-09-30
+>
+> - **El cliente ya aplicó las columnas de este documento:** `/tenant/db-check` responde `tiene_errores: false` para `lexascl_mcn`. Las secciones 2 a 4 quedan como referencia histórica.
+> - **Presupuestos seguía sin listar (error 500) por otra causa:** en mcn `pre_nro` es `char(12)` con formato `NNNNN-AAAA-V` (ej. `06798-2026-0`) en `cot013`, `cot005`, `cot005l`, `cot017` y `cot018`. En los demás tenants es `bigint`. **No requiere cambios en la BD del cliente:** la app pasa a aceptar ambos formatos (change OpenSpec [`soportar-pre-nro-alfanumerico`](../openspec/changes/soportar-pre-nro-alfanumerico/proposal.md)).
+> - **Órdenes de compra:** `ocp_nro` es `bigint` en mcn, así que no se ve afectado.
+> - **Pendiente:** los PDFs de presupuestos de mcn no se pueden guardar en `lexascl_reppdf.pdf001` (`PdfNumero` es `bigint`). Mientras tanto se muestran "sin PDF". Se resolverá en una spec aparte.
+
+---
+
 ## 1. Contexto
 
 La aplicación **MCN Aprobaciones** se conectó correctamente a la base de datos de MCN (159 tablas). La conexión y los permisos funcionan.

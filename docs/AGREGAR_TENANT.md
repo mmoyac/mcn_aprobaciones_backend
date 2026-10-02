@@ -322,6 +322,8 @@ Luego actualizar la tabla de tenants en [AGENTS.md](../AGENTS.md) (URLs por tena
 | 5 | ~~`/tenant/db-check` dice OK pero presupuestos falla.~~ **Resuelto por [SPEC-001](specs/SPEC-001-deteccion-incompatibilidad-bd.md):** el `db-check` ahora deriva las columnas del modelo ORM + tablas de SQL crudo, por lo que es **autoritativo** (equivalente al script del paso 4). El script del paso 4 sigue sirviendo para diagnóstico offline. |
 | 6 | Presupuestos no anda en un tenant pero órdenes sí. | El ERP del cliente tiene schema divergente en `cot013`/`clientea`/`cot005*`. Documentar (paso 8); órdenes funciona igual. |
 | 7 | Warnings `http2 deprecated` / `protocol options redefined` al recargar nginx. | Benignos. Mirar que diga `test is successful`. |
+| 8 | `db-check` en verde pero el listado de presupuestos da **500** (caso mcn, 2026-09-30). | El `db-check` valida que las columnas **existan**, no su **tipo**. En mcn `pre_nro` es `char(12)` (`06798-2026-0`) y no `bigint`. La app ya acepta ambos formatos ([change `soportar-pre-nro-alfanumerico`](../openspec/changes/soportar-pre-nro-alfanumerico/proposal.md)), pero al dar de alta conviene revisar el tipo con `SELECT TABLE_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME IN ('pre_nro','ocp_nro');`. Si `ocp_nro` no es numérico, las órdenes de compra **no** están cubiertas. |
+| 9 | Los PDFs de presupuestos de un tenant con `pre_nro` alfanumérico no se ven. | `lexascl_reppdf.pdf001.PdfNumero` es `bigint`: esos presupuestos se muestran "sin PDF". Pendiente de una spec propia. |
 
 ---
 

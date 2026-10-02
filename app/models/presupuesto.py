@@ -1,7 +1,7 @@
 """
 Modelo SQLAlchemy para la tabla de presupuestos (cot013)
 """
-from sqlalchemy import Column, BigInteger, SmallInteger, CHAR, Date, DECIMAL, Text, ForeignKey
+from sqlalchemy import Column, BigInteger, SmallInteger, String, CHAR, Date, DECIMAL, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 # Importar Cliente aquí para evitar errores de referencia circular en strings de relationship
@@ -20,7 +20,9 @@ class Presupuesto(Base):
     
     # Clave primaria compuesta
     Loc_cod = Column(SmallInteger, primary_key=True, nullable=False)
-    pre_nro = Column(BigInteger, primary_key=True, nullable=False)
+    # BIGINT en la mayoría de los ERP y CHAR(12) en otros (mcn). String no convierte
+    # valores: el driver entrega int o str según la columna real de cada tenant.
+    pre_nro = Column(String(20), primary_key=True, nullable=False)
     
     # Información básica del presupuesto
     pre_est = Column(CHAR(1), nullable=False, comment="Estado del presupuesto")

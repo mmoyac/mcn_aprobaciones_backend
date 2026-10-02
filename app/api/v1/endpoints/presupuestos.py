@@ -1,7 +1,7 @@
 """
 Endpoints REST API para gestión de presupuestos
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from sqlalchemy.orm import Session
 from typing import List
 import asyncio
@@ -10,6 +10,7 @@ from app.core.deps import get_tenant_db, get_current_user, get_current_user_id
 from app.models.usuario import Usuario
 from app.models.local import Local
 from app.schemas.presupuesto import (
+    PRE_NRO_PATTERN,
     PresupuestoIndicadores,
     PresupuestoDetalle,
     PresupuestoAprobar,
@@ -305,7 +306,7 @@ async def buscar_historico(
 )
 async def obtener_detalle_presupuesto(
     loc_cod: int,
-    pre_nro: int,
+    pre_nro: str = Path(..., max_length=20, pattern=PRE_NRO_PATTERN),
     db: Session = Depends(get_tenant_db),
     current_user: Usuario = Depends(get_current_user)
 ) -> DetallePresupuesto:

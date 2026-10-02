@@ -61,7 +61,7 @@ package.json
 debug_*.py
 
 # Test Files (Local development)
-test_*.py
+/test_*.py
 test_*.ps1
 *.pdf
 check_*.py

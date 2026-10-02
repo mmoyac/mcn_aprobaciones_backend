@@ -1,9 +1,15 @@
 """
 Schemas Pydantic para presupuestos y sus indicadores
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from datetime import date, datetime
-from typing import Optional
+from typing import Annotated, Optional, Union
+
+# Número de presupuesto: BIGINT en la mayoría de los ERP (gontec, mga, mgacom) y
+# CHAR(12) "NNNNN-AAAA-V" en otros (mcn). Se conserva el tipo tal como llega:
+# un int se sigue serializando como número JSON y un texto como string.
+PRE_NRO_PATTERN = r"^[0-9A-Za-z\-]+$"
+PreNro = Union[int, Annotated[str, StringConstraints(max_length=20, pattern=PRE_NRO_PATTERN)]]
 
 
 class PresupuestoIndicadores(BaseModel):
@@ -39,7 +45,7 @@ class PresupuestoBase(BaseModel):
     """Schema base para presupuestos."""
     
     Loc_cod: int = Field(..., description="Código de local")
-    pre_nro: int = Field(..., description="Número de presupuesto")
+    pre_nro: PreNro = Field(..., description="Número de presupuesto (entero o texto según el ERP del tenant)")
     pre_est: str = Field(..., description="Estado del presupuesto", max_length=1)
     pre_fec: date = Field(..., description="Fecha del presupuesto")
     pre_rut: int = Field(..., description="RUT del cliente")
@@ -103,7 +109,7 @@ class PresupuestoAprobar(BaseModel):
     El usuario que aprueba se obtiene del token JWT (no se envía en el body).
     """
     Loc_cod: int = Field(..., description="Código de local")
-    pre_nro: int = Field(..., description="Número de presupuesto")
+    pre_nro: PreNro = Field(..., description="Número de presupuesto (entero o texto según el ERP del tenant)")
     
     class Config:
         json_schema_extra = {
@@ -121,7 +127,7 @@ class PresupuestoAprobadoResponse(BaseModel):
     success: bool = Field(..., description="Indica si la aprobación fue exitosa")
     message: str = Field(..., description="Mensaje descriptivo")
     Loc_cod: int = Field(..., description="Código de local")
-    pre_nro: int = Field(..., description="Número de presupuesto")
+    pre_nro: PreNro = Field(..., description="Número de presupuesto (entero o texto según el ERP del tenant)")
     pre_vbggUsu: str = Field(..., description="Usuario que aprobó")
     pre_vbggDt: date = Field(..., description="Fecha de aprobación")
     pre_vbggTime: str = Field(..., description="Hora de aprobación")

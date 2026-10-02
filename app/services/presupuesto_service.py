@@ -2,16 +2,18 @@
 Servicio de lógica de negocio para presupuestos
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, text
+from sqlalchemy import func, and_, text, bindparam
 from datetime import datetime, date
 import pytz
 import os
 from typing import List, Dict, Any
 from app.models.presupuesto import Presupuesto
 from app.models.usuario import Usuario
-from app.schemas.presupuesto import PresupuestoIndicadores
+from app.schemas.presupuesto import PreNro, PresupuestoIndicadores
 from app.schemas.presupuesto_detalle import DetallePresupuesto, ItemPresupuesto, CostoItem, PresupuestoHistorico, AprobacionPresupuesto
 from app.db.tenant_session import create_tenant_session
+
+_BIGINT_MAX = 2**63 - 1
 
 
 class PresupuestoService:
@@ -75,44 +77,59 @@ class PresupuestoService:
         )
 
     @staticmethod
+    def _es_numero_reppdf(numero) -> bool:
+        """
+        True si `numero` puede buscarse en pdf001.PdfNumero (BIGINT): un int o un texto
+        de solo dígitos que quepa en BIGINT. Un pre_nro alfanumérico ('06798-2026-0')
+        nunca debe usarse contra REPPDF: MySQL lo convertiría a 6798 al comparar.
+        """
+        if isinstance(numero, bool):
+            return False
+        if isinstance(numero, int):
+            return 0 <= numero <= _BIGINT_MAX
+        if isinstance(numero, str) and numero.isascii() and numero.isdigit():
+            return int(numero) <= _BIGINT_MAX
+        return False
+
+    @staticmethod
     def _verificar_pdfs_batch(items: list, tenant_id: int, tipo: int) -> dict:
         """
         Consulta en una sola query todos los PDFs para una lista de (loc_cod, numero).
         Retorna dict {(loc_cod, numero): estado} donde estado: 0=no existe, 1=con PDF, 2=sin contenido.
+        Las claves son los mismos (loc_cod, numero) recibidos. Los números no numéricos
+        se informan como 0 sin consultar REPPDF.
         """
         if not items:
             return {}
         import logging
         _log = logging.getLogger(__name__)
+        pairs = [(loc_cod, numero) for loc_cod, numero in items]
+        pdf_map = {pair: 0 for pair in pairs}
+        numeros = sorted({int(n) for _, n in pairs if PresupuestoService._es_numero_reppdf(n)})
+        if not numeros:
+            return pdf_map
         db_cliente = PresupuestoService._get_reppdf_session()
         if not db_cliente:
             _log.error("_verificar_pdfs_batch: no REPPDF session (env vars REPPDF_USER/REPPDF_PASSWORD no configuradas)")
             return {}
         try:
-            pairs = [(loc_cod, numero) for loc_cod, numero in items]
-            numeros = [p[1] for p in pairs]
             _log.info(f"_verificar_pdfs_batch: tenant_id={tenant_id}, tipo={tipo}, numeros={numeros}")
-            in_clause = ",".join(str(n) for n in numeros)
             result = db_cliente.execute(
-                text(f"""
+                text("""
                     SELECT PdfLocCod, PdfNumero, LENGTH(PdfBlob) as blob_size
                     FROM pdf001
                     WHERE PdfEmpCd = :emp_cd
                       AND PdfTipo   = :tipo
-                      AND PdfNumero IN ({in_clause})
-                """),
-                {"emp_cd": tenant_id, "tipo": tipo}
+                      AND PdfNumero IN :numeros
+                """).bindparams(bindparam("numeros", expanding=True)),
+                {"emp_cd": tenant_id, "tipo": tipo, "numeros": numeros}
             )
             rows = result.fetchall()
             _log.info(f"_verificar_pdfs_batch: {len(rows)} filas encontradas: {[(r[0], r[1], r[2]) for r in rows]}")
-            pdf_map = {}
-            for row in rows:
-                key = (row[0], row[1])
-                blob_size = row[2] or 0
-                pdf_map[key] = 1 if blob_size > 0 else 2
+            encontrados = {(row[0], int(row[1])): 1 if (row[2] or 0) > 0 else 2 for row in rows}
             for loc_cod, numero in pairs:
-                if (loc_cod, numero) not in pdf_map:
-                    pdf_map[(loc_cod, numero)] = 0
+                if PresupuestoService._es_numero_reppdf(numero):
+                    pdf_map[(loc_cod, numero)] = encontrados.get((loc_cod, int(numero)), 0)
             return pdf_map
         except Exception as e:
             _log.error(f"_verificar_pdfs_batch error: {e}", exc_info=True)
@@ -130,10 +147,13 @@ class PresupuestoService:
         return result.get((loc_cod, numero), 0)
 
     @staticmethod
-    def _eliminar_pdf_reppdf(loc_cod: int, pre_nro: int, tenant_id: int) -> None:
+    def _eliminar_pdf_reppdf(loc_cod: int, pre_nro: PreNro, tenant_id: int) -> None:
         """Elimina el PDF de pdf001 en REPPDF al aprobar un presupuesto. Falla silenciosamente."""
         import logging
         _log = logging.getLogger(__name__)
+        if not PresupuestoService._es_numero_reppdf(pre_nro):
+            _log.info(f"PDF no eliminado de REPPDF: pre_nro={pre_nro!r} no es numérico (tenant={tenant_id})")
+            return
         db_cliente = PresupuestoService._get_reppdf_session()
         if not db_cliente:
             return
@@ -146,7 +166,7 @@ class PresupuestoService:
                       AND PdfLocCod = :loc_cod
                       AND PdfNumero = :numero
                 """),
-                {"emp_cd": tenant_id, "loc_cod": loc_cod, "numero": pre_nro}
+                {"emp_cd": tenant_id, "loc_cod": loc_cod, "numero": int(pre_nro)}
             )
             db_cliente.commit()
             _log.info(f"PDF eliminado de REPPDF: tenant={tenant_id}, loc_cod={loc_cod}, pre_nro={pre_nro}, filas={result.rowcount}")
@@ -220,7 +240,7 @@ class PresupuestoService:
     def aprobar_presupuesto(
         db: Session,
         loc_cod: int,
-        pre_nro: int,
+        pre_nro: PreNro,
         usuario: str,
         tenant_id: int = 1
     ) -> dict:
@@ -341,7 +361,7 @@ class PresupuestoService:
         ]
 
     @staticmethod
-    def obtener_detalle(db: Session, loc_cod: int, pre_nro: int) -> DetallePresupuesto:
+    def obtener_detalle(db: Session, loc_cod: int, pre_nro: PreNro) -> DetallePresupuesto:
         """
         Obtiene el detalle completo de un presupuesto: ítems (cot005) y costos por ítem (cot005l).
         Usa 2 queries batch para evitar N+1.
@@ -360,7 +380,7 @@ class PresupuestoService:
             text("""
                 SELECT Pre_VbLibUsu, Pre_VBLibDt, Pre_VbLibTime,
                        pre_VbUsu, pre_VbFec, pre_VbTime,
-                       pre_vbggUsu, pre_vbggDt, pre_vbggTime
+                       pre_vbggUsu, pre_vbggDt, pre_vbggTime, pre_nro
                 FROM cot013
                 WHERE Loc_cod = :loc_cod AND pre_nro = :pre_nro
             """),
@@ -442,13 +462,20 @@ class PresupuestoService:
                 costos=costos_por_item.get(lin, [])
             ))
 
+        # Devolver pre_nro con el tipo de la BD (int en tenants BIGINT, str en CHAR):
+        # desde la ruta siempre llega como texto.
+        if aprobacion_row:
+            pre_nro = aprobacion_row[9]
+        elif isinstance(pre_nro, str) and pre_nro.isdigit() and (pre_nro == "0" or not pre_nro.startswith("0")):
+            pre_nro = int(pre_nro)
+
         return DetallePresupuesto(loc_cod=loc_cod, pre_nro=pre_nro, aprobaciones=aprobaciones, items=items)
 
     @staticmethod
     def anular_presupuesto(
         db: Session,
         loc_cod: int,
-        pre_nro: int,
+        pre_nro: PreNro,
     ) -> dict:
         """
         Anula un presupuesto seteando pre_est = 'N'.
@@ -476,7 +503,7 @@ class PresupuestoService:
     def desaprobar_presupuesto(
         db: Session,
         loc_cod: int,
-        pre_nro: int,
+        pre_nro: PreNro,
         usuario: str
     ) -> dict:
         """
